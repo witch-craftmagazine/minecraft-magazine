@@ -25,10 +25,14 @@ export class BookViewer {
     // Check URL hash for direct issue deep-link (e.g., #issue=issue1 or #issue1)
     this.resolveInitialIssueFromHash();
 
+    // Automatically use single page on narrow screens (< 680px) and two pages on wider screens
+    const isNarrow = typeof window !== 'undefined' && window.innerWidth < 680;
+    const initialViewMode = isNarrow ? 'single' : 'double';
+
     this.bookCanvas = new BookCanvas({
       container: this.canvasWrapper,
       baseAssetPath: './assets',
-      defaultViewMode: 'double',
+      defaultViewMode: initialViewMode,
       onPageChange: (page, total) => this.updatePageIndicator(page, total),
     });
 
@@ -156,6 +160,15 @@ export class BookViewer {
       } else if ((e.shiftKey && e.key === 'ArrowRight') || e.key === ']') {
         e.preventDefault();
         this.stepIssue(1);
+      }
+    });
+
+    // Automatically adjust between single page (narrow screens) and two pages on resize / rotation
+    window.addEventListener('resize', () => {
+      const isNarrowScreen = window.innerWidth < 680;
+      const targetMode = isNarrowScreen ? 'single' : 'double';
+      if (this.bookCanvas.getViewMode() !== targetMode) {
+        this.bookCanvas.setViewMode(targetMode);
       }
     });
 
