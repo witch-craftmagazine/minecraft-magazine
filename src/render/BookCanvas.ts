@@ -40,6 +40,10 @@ export class BookCanvas {
   // Interaction
   private hoveredButton: 'forward' | 'backward' | null = null;
   private onPageChange?: (page: number, total: number) => void;
+  private touchStartX = 0;
+  private touchStartY = 0;
+  private touchStartTime = 0;
+  private lastTouchTurnTime = 0;
 
   // Animation for §k (obfuscated)
   private animFrameId: number | null = null;
@@ -499,7 +503,68 @@ export class BookCanvas {
       }
     });
 
+    // Touch events for mobile devices (swiping and tapping)
+    this.canvas.addEventListener('touchstart', (e) => {
+      if (e.touches.length === 1) {
+        const touch = e.touches[0];
+        this.touchStartX = touch.clientX;
+        this.touchStartY = touch.clientY;
+        this.touchStartTime = Date.now();
+      }
+    }, { passive: true });
+
+    this.canvas.addEventListener('touchend', (e) => {
+      if (e.changedTouches.length !== 1) return;
+      const touch = e.changedTouches[0];
+      const deltaX = touch.clientX - this.touchStartX;
+      const deltaY = touch.clientY - this.touchStartY;
+      const deltaTime = Date.now() - this.touchStartTime;
+
+      const rect = this.canvas.getBoundingClientRect();
+      const baseW = this.viewMode === 'double' ? TWO_PAGE_WIDTH : 192;
+      const baseH = 192;
+      const unscaledX = rect.width ? (touch.clientX - rect.left) * (baseW / rect.width) : 0;
+      const unscaledY = rect.height ? (touch.clientY - rect.top) * (baseH / rect.height) : 0;
+
+      // 1. Horizontal swipe gesture
+      if (Math.abs(deltaX) > 35 && Math.abs(deltaX) > Math.abs(deltaY) * 1.3 && deltaTime < 600) {
+        this.lastTouchTurnTime = Date.now();
+        if (deltaX < 0) {
+          this.nextPage();
+        } else {
+          this.prevPage();
+        }
+        return;
+      }
+
+      // 2. Tap gesture on touchscreen
+      if (Math.abs(deltaX) < 15 && Math.abs(deltaY) < 15) {
+        this.lastTouchTurnTime = Date.now();
+
+        // Check if tapped directly on arrow buttons
+        const hit = this.hitTestButtons(unscaledX, unscaledY);
+        if (hit === 'forward') {
+          this.nextPage();
+          return;
+        } else if (hit === 'backward') {
+          this.prevPage();
+          return;
+        }
+
+        // Tap on right half -> next page; left half -> prev page
+        const midX = baseW / 2;
+        if (unscaledX >= midX) {
+          this.nextPage();
+        } else {
+          this.prevPage();
+        }
+      }
+    }, { passive: true });
+
     this.canvas.addEventListener('click', (e) => {
+      // Ignore simulated click events fired right after touchend
+      if (Date.now() - this.lastTouchTurnTime < 450) return;
+
       const rect = this.canvas.getBoundingClientRect();
       const baseW = this.viewMode === 'double' ? TWO_PAGE_WIDTH : 192;
       const baseH = 192;
@@ -511,6 +576,14 @@ export class BookCanvas {
         this.nextPage();
       } else if (hit === 'backward') {
         this.prevPage();
+      } else {
+        // Click on right page turns forward, left page turns back
+        const midX = baseW / 2;
+        if (unscaledX >= midX) {
+          this.nextPage();
+        } else {
+          this.prevPage();
+        }
       }
     });
 
