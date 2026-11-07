@@ -65,6 +65,7 @@ export function splitTextToLines(
     // Wrap the tokens in this paragraph
     let currentLineSpans: FormattedSpan[] = [];
     let currentLineWidth = 0;
+    let isWrappedLine = false;
 
     for (const span of spans) {
       // Remember the last style seen
@@ -86,8 +87,8 @@ export function splitTextToLines(
           tokenWidth += atlas.getAdvance(ch, span.bold);
         }
 
-        // If it's pure whitespace and at the start of a wrapped line, skip it
-        if (/^\s+$/.test(token) && currentLineSpans.length === 0) {
+        // Only skip pure whitespace if this line was created by automatic word wrap
+        if (/^\s+$/.test(token) && currentLineSpans.length === 0 && isWrappedLine) {
           continue;
         }
 
@@ -98,12 +99,16 @@ export function splitTextToLines(
             text: token,
           });
           currentLineWidth += tokenWidth;
+          if (!/^\s+$/.test(token)) {
+            isWrappedLine = false;
+          }
         } else {
           // Doesn't fit. If whitespace, wrap without adding space
           if (/^\s+$/.test(token)) {
             resultLines.push({ spans: currentLineSpans, width: currentLineWidth });
             currentLineSpans = [];
             currentLineWidth = 0;
+            isWrappedLine = true;
             continue;
           }
 
@@ -112,6 +117,7 @@ export function splitTextToLines(
             resultLines.push({ spans: currentLineSpans, width: currentLineWidth });
             currentLineSpans = [];
             currentLineWidth = 0;
+            isWrappedLine = true;
           }
 
           // If the word fits on an empty line, put it there
@@ -121,6 +127,9 @@ export function splitTextToLines(
               text: token,
             });
             currentLineWidth = tokenWidth;
+            if (!/^\s+$/.test(token)) {
+              isWrappedLine = false;
+            }
           } else {
             // Word itself is longer than maxWidth (114px), break character by character
             let subWord = '';
@@ -135,6 +144,7 @@ export function splitTextToLines(
                 });
                 subWord = ch;
                 subWidth = chAdv;
+                isWrappedLine = true;
               } else {
                 subWord += ch;
                 subWidth += chAdv;
@@ -144,6 +154,7 @@ export function splitTextToLines(
             if (subWord.length > 0) {
               currentLineSpans.push({ ...span, text: subWord });
               currentLineWidth = subWidth;
+              isWrappedLine = false;
             }
           }
         }
