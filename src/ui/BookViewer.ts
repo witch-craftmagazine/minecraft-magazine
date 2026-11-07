@@ -68,7 +68,7 @@ export class BookViewer {
         <div class="magazine-nav-inner">
           <div class="magazine-brand">
             <span class="magazine-brand-icon">✨</span>
-            <span class="magazine-brand-title">Witch-Craft</span>
+            <span class="magazine-brand-title">witchcraft...magazine</span>
           </div>
 
           <div class="magazine-selector-wrapper">
@@ -113,7 +113,7 @@ export class BookViewer {
         this.currentBook = book;
         this.bookCanvas.setBook(this.currentBook);
         this.bookCanvas.setPage(0);
-        document.title = `${issue.title} — Witch-Craft Magazine`;
+        document.title = `${issue.title} · witchcraft...magazine`;
       }
     } catch (err) {
       console.error('Failed to load magazine issue:', err);
