@@ -108,74 +108,83 @@ export function parseFormattedText(rawText: string, initialStyle?: StyleState): 
 
   let i = 0;
   while (i < text.length) {
-    if (text[i] === '§' && i + 1 < text.length) {
-      // Check for §x§r§r§g§g§b§b hex color format
-      if ((text[i + 1] === 'x' || text[i + 1] === 'X') && i + 13 < text.length) {
-        let isHex = true;
-        let hexColor = '#';
-        for (let h = 0; h < 6; h++) {
-          const prefix = text[i + 2 + h * 2];
-          const char = text[i + 3 + h * 2];
-          if (prefix !== '§' || !/[0-9a-fA-F]/.test(char)) {
-            isHex = false;
-            break;
+    if (text[i] === '§') {
+      if (i + 1 < text.length) {
+        // Check for §x§r§r§g§g§b§b hex color format
+        if ((text[i + 1] === 'x' || text[i + 1] === 'X') && i + 13 < text.length) {
+          let isHex = true;
+          let hexColor = '#';
+          for (let h = 0; h < 6; h++) {
+            const prefix = text[i + 2 + h * 2];
+            const char = text[i + 3 + h * 2];
+            if (prefix !== '§' || !/[0-9a-fA-F]/.test(char)) {
+              isHex = false;
+              break;
+            }
+            hexColor += char;
           }
-          hexColor += char;
-        }
 
-        if (isHex) {
-          flush();
-          style.color = hexColor;
-          // In Minecraft, setting a color clears style flags
-          style.bold = false;
-          style.italic = false;
-          style.underlined = false;
-          style.strikethrough = false;
-          style.obfuscated = false;
-          i += 14;
-          continue;
-        }
-      }
-
-      const code = text[i + 1].toLowerCase();
-      flush();
-
-      if (code in MINECRAFT_COLORS) {
-        style.color = MINECRAFT_COLORS[code];
-        // Color codes reset style flags in vanilla Minecraft
-        style.bold = false;
-        style.italic = false;
-        style.underlined = false;
-        style.strikethrough = false;
-        style.obfuscated = false;
-      } else {
-        switch (code) {
-          case 'k':
-            style.obfuscated = true;
-            break;
-          case 'l':
-            style.bold = true;
-            break;
-          case 'm':
-            style.strikethrough = true;
-            break;
-          case 'n':
-            style.underlined = true;
-            break;
-          case 'o':
-            style.italic = true;
-            break;
-          case 'r':
-            style.color = DEFAULT_BOOK_TEXT_COLOR;
+          if (isHex) {
+            flush();
+            style.color = hexColor;
+            // In Minecraft, setting a color clears style flags
             style.bold = false;
             style.italic = false;
             style.underlined = false;
             style.strikethrough = false;
             style.obfuscated = false;
-            break;
+            i += 14;
+            continue;
+          }
         }
+
+        const code = text[i + 1].toLowerCase();
+        flush();
+
+        if (code in MINECRAFT_COLORS) {
+          style.color = MINECRAFT_COLORS[code];
+          // Color codes reset style flags in vanilla Minecraft
+          style.bold = false;
+          style.italic = false;
+          style.underlined = false;
+          style.strikethrough = false;
+          style.obfuscated = false;
+        } else {
+          switch (code) {
+            case 'k':
+              style.obfuscated = true;
+              break;
+            case 'l':
+              style.bold = true;
+              break;
+            case 'm':
+              style.strikethrough = true;
+              break;
+            case 'n':
+              style.underlined = true;
+              break;
+            case 'o':
+              style.italic = true;
+              break;
+            case 'r':
+              style.color = DEFAULT_BOOK_TEXT_COLOR;
+              style.bold = false;
+              style.italic = false;
+              style.underlined = false;
+              style.strikethrough = false;
+              style.obfuscated = false;
+              break;
+            default:
+              // Unknown formatting code: in Minecraft, § and the following character
+              // are consumed without altering format or rendering visible text.
+              break;
+          }
+        }
+        i += 2;
+      } else {
+        // Trailing lone § at the end of text: drop it (never render § as printable text)
+        i++;
       }
-      i += 2;
     } else {
       currentBuffer += text[i];
       i++;
@@ -192,5 +201,6 @@ export function parseFormattedText(rawText: string, initialStyle?: StyleState): 
 export function stripFormatting(text: string): string {
   return normalizeFormattingCodes(text)
     .replace(/§x(§[0-9a-fA-F]){6}/gi, '')
-    .replace(/§[0-9a-fA-Fk-oK-OrR]/g, '');
+    .replace(/§./g, '')
+    .replace(/§/g, '');
 }

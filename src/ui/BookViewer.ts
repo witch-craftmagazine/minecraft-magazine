@@ -4,12 +4,14 @@ import { soundManager } from '../render/SoundEffects';
 import { ResourcePackManager } from '../engine/ResourcePackManager';
 import { WITCHCRAFT_MAGAZINE_ISSUES } from '../samples/sampleBooks';
 import { parseStendhalBook } from '../io/BookParser';
+import { PageInspectorModal } from './PageInspectorModal';
 
 export class BookViewer {
   private container: HTMLElement;
   private canvasWrapper!: HTMLElement;
   private bookCanvas!: BookCanvas;
   private packManager!: ResourcePackManager;
+  private pageInspector!: PageInspectorModal;
 
   private currentBook: MinecraftBook = { title: '', author: '', pages: [''] };
   private currentIssueId = 'intro';
@@ -35,6 +37,12 @@ export class BookViewer {
       defaultViewMode: initialViewMode,
       onPageChange: (page, total) => this.updatePageIndicator(page, total),
     });
+
+    this.pageInspector = new PageInspectorModal(
+      this.container,
+      this.bookCanvas,
+      async (issueId) => this.switchIssue(issueId)
+    );
 
     this.setupListeners();
 
@@ -91,6 +99,7 @@ export class BookViewer {
           <div class="magazine-meta">
             <span class="magazine-page-info" id="magazine-page-info">1-2 / 16</span>
             <button class="nav-icon-btn" id="btn-sound-toggle" title="Toggle Page Flip Sound">🔊</button>
+            <button class="nav-icon-btn" id="btn-inspector-toggle" title="Page & Line Inspector (I)">🔍</button>
           </div>
         </div>
       </header>
@@ -121,6 +130,7 @@ export class BookViewer {
         this.bookCanvas.setBook(this.currentBook);
         this.bookCanvas.setPage(0);
         document.title = `${issue.title} · witchcraft...magazine`;
+        this.pageInspector?.setIssueId(issueId);
       }
     } catch (err) {
       console.error('Failed to load magazine issue:', err);
@@ -132,6 +142,7 @@ export class BookViewer {
     const prevIssueBtn = this.container.querySelector('#btn-prev-issue') as HTMLButtonElement;
     const nextIssueBtn = this.container.querySelector('#btn-next-issue') as HTMLButtonElement;
     const soundBtn = this.container.querySelector('#btn-sound-toggle') as HTMLButtonElement;
+    const inspectBtn = this.container.querySelector('#btn-inspector-toggle') as HTMLButtonElement;
 
     // Issue dropdown change
     select.addEventListener('change', () => {
@@ -147,6 +158,11 @@ export class BookViewer {
       const active = soundManager.toggle();
       soundBtn.textContent = active ? '🔊' : '🔇';
       soundBtn.title = active ? 'Mute Sound' : 'Enable Sound';
+    });
+
+    // Inspector toggle button
+    inspectBtn?.addEventListener('click', () => {
+      this.pageInspector?.toggle(this.currentIssueId);
     });
 
     // Keyboard shortcuts for issue navigation (Shift + Left / Shift + Right or [ / ])
@@ -208,5 +224,7 @@ export class BookViewer {
     } else {
       pageInfo.textContent = `${currentPage + 1} / ${totalPages}`;
     }
+
+    this.pageInspector?.onPageTurned();
   }
 }

@@ -17,3 +17,5 @@ Thumbs.db
 
 # Temporary / duplicate unpacked raw pack (served from public/assets/packs/craftadia)
 customresourcepack/
+docs/localgitignorethis/
+
