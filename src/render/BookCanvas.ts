@@ -17,6 +17,7 @@ export interface BookCanvasOptions {
   baseAssetPath?: string;
   defaultViewMode?: ViewMode;
   showPageIndicator?: boolean;
+  textSelectionEnabled?: boolean;
 }
 
 export class BookCanvas {
@@ -34,6 +35,7 @@ export class BookCanvas {
   private viewMode: ViewMode = 'double';
   private scale = 3; // Integer scaling factor
   private showPageIndicator = false;
+  private textSelectionEnabled = false; // Off by default
 
   // Layout Debug & Inspector support
   private showLayoutGrid = false;
@@ -65,17 +67,18 @@ export class BookCanvas {
     this.baseAssetPath = options.baseAssetPath || './assets';
     this.onPageChange = options.onPageChange;
     this.showPageIndicator = options.showPageIndicator ?? false;
+    this.textSelectionEnabled = options.textSelectionEnabled ?? false;
     if (options.defaultViewMode) {
       this.viewMode = options.defaultViewMode;
     }
 
     this.stageElement = document.createElement('div');
-    this.stageElement.className = 'book-stage';
+    this.stageElement.className = `book-stage${this.textSelectionEnabled ? ' text-selection-enabled' : ''}`;
     this.stageElement.setAttribute('role', 'region');
     this.stageElement.setAttribute('aria-label', 'Minecraft Magazine Reader');
 
     this.textLayerElement = document.createElement('div');
-    this.textLayerElement.className = 'book-text-layer';
+    this.textLayerElement.className = `book-text-layer${this.textSelectionEnabled ? ' text-selection-enabled' : ''}`;
     this.textLayerElement.setAttribute('aria-live', 'polite');
 
     this.canvas = document.createElement('canvas');
@@ -237,6 +240,20 @@ export class BookCanvas {
 
   public getShowPageIndicator(): boolean {
     return this.showPageIndicator;
+  }
+
+  public setTextSelectionEnabled(enabled: boolean): void {
+    this.textSelectionEnabled = enabled;
+    if (this.stageElement) {
+      this.stageElement.classList.toggle('text-selection-enabled', enabled);
+    }
+    if (this.textLayerElement) {
+      this.textLayerElement.classList.toggle('text-selection-enabled', enabled);
+    }
+  }
+
+  public isTextSelectionEnabled(): boolean {
+    return this.textSelectionEnabled;
   }
 
   public setScale(scale: number): void {
@@ -689,17 +706,8 @@ export class BookCanvas {
     });
 
     this.stageElement.addEventListener('click', (e) => {
-      // Ignore clicks on accessible navigation buttons (handled separately)
-      if ((e.target as HTMLElement)?.closest('.accessible-nav-btn')) return;
-
       // Ignore simulated click events fired right after touchend
       if (Date.now() - this.lastTouchTurnTime < 450) return;
-
-      // If user was highlighting/selecting text or dragging, do not turn page
-      if (Math.hypot(e.clientX - pointerDownX, e.clientY - pointerDownY) > 5) return;
-      if (typeof window !== 'undefined' && window.getSelection() && window.getSelection()!.toString().length > 0) {
-        return;
-      }
 
       const rect = this.canvas.getBoundingClientRect();
       const baseW = this.viewMode === 'double' ? TWO_PAGE_WIDTH : 192;
@@ -707,19 +715,35 @@ export class BookCanvas {
       const unscaledX = rect.width ? (e.clientX - rect.left) * (baseW / rect.width) : 0;
       const unscaledY = rect.height ? (e.clientY - rect.top) * (baseH / rect.height) : 0;
 
+      // 1. Navigation buttons always take precedence (never blocked by selection)
       const hit = this.hitTestButtons(unscaledX, unscaledY);
       if (hit === 'forward') {
-        this.nextPage();
-      } else if (hit === 'backward') {
-        this.prevPage();
-      } else {
-        // Click on right page turns forward, left page turns back
-        const midX = baseW / 2;
-        if (unscaledX >= midX) {
-          this.nextPage();
-        } else {
-          this.prevPage();
+        if (typeof window !== 'undefined' && window.getSelection) {
+          window.getSelection()?.removeAllRanges();
         }
+        this.nextPage();
+        return;
+      } else if (hit === 'backward') {
+        if (typeof window !== 'undefined' && window.getSelection) {
+          window.getSelection()?.removeAllRanges();
+        }
+        this.prevPage();
+        return;
+      }
+
+      // 2. When text selection is enabled, prevent page turning only if user was dragging to select
+      if (this.textSelectionEnabled) {
+        if (Math.hypot(e.clientX - pointerDownX, e.clientY - pointerDownY) > 5) return;
+        const sel = typeof window !== 'undefined' && window.getSelection ? window.getSelection() : null;
+        if (sel && sel.toString().trim().length > 0) return;
+      }
+
+      // 3. Click on right page turns forward, left page turns back
+      const midX = baseW / 2;
+      if (unscaledX >= midX) {
+        this.nextPage();
+      } else {
+        this.prevPage();
       }
     });
 

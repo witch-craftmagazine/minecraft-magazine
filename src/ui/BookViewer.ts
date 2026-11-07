@@ -99,6 +99,7 @@ export class BookViewer {
           <div class="magazine-meta">
             <span class="magazine-page-info" id="magazine-page-info">1-2 / 16</span>
             <button class="nav-icon-btn" id="btn-sound-toggle" title="Toggle Page Flip Sound">🔊</button>
+            <button class="nav-icon-btn" id="btn-text-select-toggle" title="Enable Text Selection (T)">📝</button>
             <button class="nav-icon-btn" id="btn-inspector-toggle" title="Page & Line Inspector (I)">🔍</button>
           </div>
         </div>
@@ -142,6 +143,7 @@ export class BookViewer {
     const prevIssueBtn = this.container.querySelector('#btn-prev-issue') as HTMLButtonElement;
     const nextIssueBtn = this.container.querySelector('#btn-next-issue') as HTMLButtonElement;
     const soundBtn = this.container.querySelector('#btn-sound-toggle') as HTMLButtonElement;
+    const textSelectBtn = this.container.querySelector('#btn-text-select-toggle') as HTMLButtonElement;
     const inspectBtn = this.container.querySelector('#btn-inspector-toggle') as HTMLButtonElement;
 
     // Issue dropdown change
@@ -160,12 +162,20 @@ export class BookViewer {
       soundBtn.title = active ? 'Mute Sound' : 'Enable Sound';
     });
 
+    // Text selection toggle button (off by default)
+    textSelectBtn?.addEventListener('click', () => {
+      const next = !this.bookCanvas.isTextSelectionEnabled();
+      this.bookCanvas.setTextSelectionEnabled(next);
+      textSelectBtn.classList.toggle('active', next);
+      textSelectBtn.title = next ? 'Disable Text Selection (T)' : 'Enable Text Selection (T)';
+    });
+
     // Inspector toggle button
     inspectBtn?.addEventListener('click', () => {
       this.pageInspector?.toggle(this.currentIssueId);
     });
 
-    // Keyboard shortcuts for issue navigation (Shift + Left / Shift + Right or [ / ])
+    // Keyboard shortcuts for issue navigation (Shift + Left / Shift + Right or [ / ]) and text selection (T)
     window.addEventListener('keydown', (e) => {
       if (['INPUT', 'TEXTAREA', 'SELECT'].includes((e.target as HTMLElement)?.tagName)) {
         return;
@@ -176,6 +186,13 @@ export class BookViewer {
       } else if ((e.shiftKey && e.key === 'ArrowRight') || e.key === ']') {
         e.preventDefault();
         this.stepIssue(1);
+      } else if (e.key === 't' || e.key === 'T') {
+        e.preventDefault();
+        const next = !this.bookCanvas.isTextSelectionEnabled();
+        this.bookCanvas.setTextSelectionEnabled(next);
+        const btn = this.container.querySelector('#btn-text-select-toggle') as HTMLButtonElement;
+        btn?.classList.toggle('active', next);
+        if (btn) btn.title = next ? 'Disable Text Selection (T)' : 'Enable Text Selection (T)';
       }
     });
 
