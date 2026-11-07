@@ -1,6 +1,7 @@
 import { LineLayout, MinecraftBook, ViewMode } from '../engine/types';
 import { defaultGlyphAtlas, GlyphAtlas } from '../engine/GlyphAtlas';
 import { splitTextToLines, LINES_PER_PAGE, BOOK_TEXT_WIDTH } from '../engine/StringSplitter';
+import { stripFormatting } from '../engine/Formatting';
 import { soundManager } from './SoundEffects';
 import { ResourcePackInfo } from '../engine/ResourcePackManager';
 
@@ -20,6 +21,8 @@ export interface BookCanvasOptions {
 
 export class BookCanvas {
   private container: HTMLElement;
+  private stageElement: HTMLElement;
+  private textLayerElement: HTMLElement;
   private canvas: HTMLCanvasElement;
   private ctx: CanvasRenderingContext2D;
   private atlas: GlyphAtlas;
@@ -66,6 +69,15 @@ export class BookCanvas {
       this.viewMode = options.defaultViewMode;
     }
 
+    this.stageElement = document.createElement('div');
+    this.stageElement.className = 'book-stage';
+    this.stageElement.setAttribute('role', 'region');
+    this.stageElement.setAttribute('aria-label', 'Minecraft Magazine Reader');
+
+    this.textLayerElement = document.createElement('div');
+    this.textLayerElement.className = 'book-text-layer';
+    this.textLayerElement.setAttribute('aria-live', 'polite');
+
     this.canvas = document.createElement('canvas');
     this.canvas.style.imageRendering = 'pixelated';
     this.canvas.style.display = 'block';
@@ -80,7 +92,9 @@ export class BookCanvas {
     if (!context) throw new Error('Could not get 2D canvas context');
     this.ctx = context;
 
-    this.container.appendChild(this.canvas);
+    this.stageElement.appendChild(this.canvas);
+    this.stageElement.appendChild(this.textLayerElement);
+    this.container.appendChild(this.stageElement);
     this.setupListeners();
   }
 
@@ -287,6 +301,7 @@ export class BookCanvas {
     if (this.onPageChange) {
       this.onPageChange(this.currentPage, this.paginatedPages.length);
     }
+    this.updateTextLayer();
   }
 
   private updateCanvasDimensions(): void {
@@ -298,7 +313,11 @@ export class BookCanvas {
     this.canvas.style.width = `${baseW * this.scale}px`;
     this.canvas.style.height = `${baseH * this.scale}px`;
 
+    this.stageElement.style.width = `${baseW * this.scale}px`;
+    this.stageElement.style.height = `${baseH * this.scale}px`;
+
     this.ctx.imageSmoothingEnabled = false;
+    this.updateTextLayer();
   }
 
   public render(): void {
@@ -335,7 +354,7 @@ export class BookCanvas {
         pageIndex: leftPageIndex,
         textStartX: 42,           // Centered on left parchment
         pageIndicatorRightX: 150,  // Near middle top margin
-        backwardButtonX: 43,      // Outer bottom-left corner
+        backwardButtonX: 53,      // Outer bottom-left corner (symmetrical with right button at 53px from edge)
         forwardButtonX: 116,
         isMirrored: true,         // Mirror background texture!
         allowForward: false,
@@ -349,8 +368,8 @@ export class BookCanvas {
           pageIndex: rightPageIndex,
           textStartX: RIGHT_PAGE_X + 36,
           pageIndicatorRightX: RIGHT_PAGE_X + 148,
-          backwardButtonX: RIGHT_PAGE_X + 43,
-          forwardButtonX: RIGHT_PAGE_X + 116, // Outer bottom-right corner
+          backwardButtonX: RIGHT_PAGE_X + 53,
+          forwardButtonX: RIGHT_PAGE_X + 116, // Outer bottom-right corner (150 + 116 = 266, 342 - (266+23) = 53px)
           isMirrored: false,
           allowForward: true,
           allowBackward: false,
@@ -364,6 +383,7 @@ export class BookCanvas {
     }
 
     this.ctx.restore();
+    this.updateTextLayer();
   }
 
   /**
@@ -647,9 +667,26 @@ export class BookCanvas {
       }
     }, { passive: true });
 
-    this.canvas.addEventListener('click', (e) => {
+    let pointerDownX = 0;
+    let pointerDownY = 0;
+
+    this.stageElement.addEventListener('pointerdown', (e) => {
+      pointerDownX = e.clientX;
+      pointerDownY = e.clientY;
+    });
+
+    this.stageElement.addEventListener('click', (e) => {
+      // Ignore clicks on accessible navigation buttons (handled separately)
+      if ((e.target as HTMLElement)?.closest('.accessible-nav-btn')) return;
+
       // Ignore simulated click events fired right after touchend
       if (Date.now() - this.lastTouchTurnTime < 450) return;
+
+      // If user was highlighting/selecting text or dragging, do not turn page
+      if (Math.hypot(e.clientX - pointerDownX, e.clientY - pointerDownY) > 5) return;
+      if (typeof window !== 'undefined' && window.getSelection() && window.getSelection()!.toString().length > 0) {
+        return;
+      }
 
       const rect = this.canvas.getBoundingClientRect();
       const baseW = this.viewMode === 'double' ? TWO_PAGE_WIDTH : 192;
@@ -694,7 +731,7 @@ export class BookCanvas {
     });
   }
 
-  private hitTestButtons(x: number, y: number): 'forward' | 'backward' | null {
+  public hitTestButtons(x: number, y: number): 'forward' | 'backward' | null {
     const isDouble = this.viewMode === 'double';
 
     if (!isDouble) {
@@ -705,11 +742,11 @@ export class BookCanvas {
         return 'forward';
       }
     } else {
-      // Left Page backward button at (43, 157, 23, 13)
-      if (this.currentPage > 0 && x >= 43 && x <= 43 + 23 && y >= 157 && y <= 157 + 13) {
+      // Left Page backward button at (53, 157, 23, 13) - symmetrical with right button at 53px from outer edge
+      if (this.currentPage > 0 && x >= 53 && x <= 53 + 23 && y >= 157 && y <= 157 + 13) {
         return 'backward';
       }
-      // Right Page forward button at (RIGHT_PAGE_X + 116, 157, 23, 13)
+      // Right Page forward button at (RIGHT_PAGE_X + 116, 157, 23, 13) -> (266, 157, 23, 13)
       const rightPageIndex = this.currentPage + 1;
       const rightBtnX = RIGHT_PAGE_X + 116;
       if (rightPageIndex < this.paginatedPages.length - 1 && x >= rightBtnX && x <= rightBtnX + 23 && y >= 157 && y <= 157 + 13) {
@@ -718,6 +755,139 @@ export class BookCanvas {
     }
 
     return null;
+  }
+
+  /**
+   * Updates the accessible DOM text layer overlay positioned directly above the canvas.
+   * This enables native browser text selection, copy/paste, and screen reader announcements.
+   */
+  public updateTextLayer(): void {
+    if (!this.textLayerElement) return;
+
+    this.textLayerElement.innerHTML = '';
+    const totalPages = this.paginatedPages.length;
+    const isDouble = this.viewMode === 'double';
+
+    if (!isDouble) {
+      // Single Page Mode
+      const pageIndex = this.currentPage;
+      const pageSection = this.buildAccessiblePageSection({
+        pageIndex,
+        totalPages,
+        textStartX: 36,
+        backwardButtonX: 43,
+        forwardButtonX: 116,
+        allowBackward: pageIndex > 0,
+        allowForward: pageIndex < totalPages - 1,
+      });
+      this.textLayerElement.appendChild(pageSection);
+    } else {
+      // Double Page Mode (Left & Right pages)
+      const leftPageIndex = this.currentPage;
+      const rightPageIndex = this.currentPage + 1;
+
+      // 1. Left Page
+      const leftSection = this.buildAccessiblePageSection({
+        pageIndex: leftPageIndex,
+        totalPages,
+        textStartX: 42,
+        backwardButtonX: 53,
+        forwardButtonX: null,
+        allowBackward: leftPageIndex > 0,
+        allowForward: false,
+      });
+      this.textLayerElement.appendChild(leftSection);
+
+      // 2. Right Page
+      if (rightPageIndex < totalPages) {
+        const rightSection = this.buildAccessiblePageSection({
+          pageIndex: rightPageIndex,
+          totalPages,
+          textStartX: RIGHT_PAGE_X + 36,
+          backwardButtonX: null,
+          forwardButtonX: RIGHT_PAGE_X + 116,
+          allowBackward: false,
+          allowForward: rightPageIndex < totalPages - 1,
+        });
+        this.textLayerElement.appendChild(rightSection);
+      }
+    }
+  }
+
+  private buildAccessiblePageSection(opts: {
+    pageIndex: number;
+    totalPages: number;
+    textStartX: number;
+    backwardButtonX: number | null;
+    forwardButtonX: number | null;
+    allowBackward: boolean;
+    allowForward: boolean;
+  }): HTMLElement {
+    const section = document.createElement('section');
+    section.className = 'accessible-page';
+    section.setAttribute('aria-label', `Page ${opts.pageIndex + 1} of ${opts.totalPages}`);
+
+    const srHeading = document.createElement('h3');
+    srHeading.className = 'sr-only';
+    srHeading.textContent = `Page ${opts.pageIndex + 1} of ${opts.totalPages}`;
+    section.appendChild(srHeading);
+
+    const pageLines = this.paginatedPages[opts.pageIndex] || [];
+    for (let i = 0; i < Math.min(LINES_PER_PAGE, pageLines.length); i++) {
+      const line = pageLines[i];
+      const lineY = (30 + i * 9) * this.scale;
+      const lineX = opts.textStartX * this.scale;
+      const rawText = line.spans.map(s => s.text).join('');
+
+      if (rawText.length > 0) {
+        const lineDiv = document.createElement('div');
+        lineDiv.className = 'accessible-line';
+        lineDiv.setAttribute('role', 'text');
+        lineDiv.style.left = `${lineX}px`;
+        lineDiv.style.top = `${lineY}px`;
+        lineDiv.style.height = `${9 * this.scale}px`;
+        lineDiv.style.fontSize = `${9 * this.scale}px`;
+        lineDiv.style.lineHeight = `${9 * this.scale}px`;
+        lineDiv.textContent = stripFormatting(rawText);
+        section.appendChild(lineDiv);
+      }
+    }
+
+    // Accessible Previous Page button
+    if (opts.backwardButtonX !== null && opts.allowBackward) {
+      const prevBtn = document.createElement('button');
+      prevBtn.className = 'accessible-nav-btn accessible-prev-btn';
+      prevBtn.setAttribute('aria-label', `Turn back to page ${opts.pageIndex}`);
+      prevBtn.setAttribute('title', 'Previous Page (Left Arrow)');
+      prevBtn.style.left = `${opts.backwardButtonX * this.scale}px`;
+      prevBtn.style.top = `${157 * this.scale}px`;
+      prevBtn.style.width = `${23 * this.scale}px`;
+      prevBtn.style.height = `${13 * this.scale}px`;
+      prevBtn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        this.prevPage();
+      });
+      section.appendChild(prevBtn);
+    }
+
+    // Accessible Next Page button
+    if (opts.forwardButtonX !== null && opts.allowForward) {
+      const nextBtn = document.createElement('button');
+      nextBtn.className = 'accessible-nav-btn accessible-next-btn';
+      nextBtn.setAttribute('aria-label', `Turn forward to page ${opts.pageIndex + 2}`);
+      nextBtn.setAttribute('title', 'Next Page (Right Arrow)');
+      nextBtn.style.left = `${opts.forwardButtonX * this.scale}px`;
+      nextBtn.style.top = `${157 * this.scale}px`;
+      nextBtn.style.width = `${23 * this.scale}px`;
+      nextBtn.style.height = `${13 * this.scale}px`;
+      nextBtn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        this.nextPage();
+      });
+      section.appendChild(nextBtn);
+    }
+
+    return section;
   }
 
   private startAnimLoop(): void {
