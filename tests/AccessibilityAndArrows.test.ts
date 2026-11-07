@@ -29,6 +29,10 @@ describe('Accessibility Text Layer & Arrow Symmetry', () => {
       const el: any = {
         tagName: tag.toUpperCase(),
         className: '',
+        classList: {
+          toggle: () => {},
+          contains: () => false,
+        },
         style: {},
         children: [] as any[],
         attributes: {} as Record<string, string>,
@@ -208,6 +212,95 @@ describe('Accessibility Text Layer & Arrow Symmetry', () => {
     expect(nextBtn.getAttribute('aria-label')).toBe('Turn forward to page 3');
   });
 
+  it('keeps text selection toggled OFF by default and allows toggling without interfering with buttons', () => {
+    const makeEl = (tag: string) => {
+      const classes = new Set<string>();
+      const el: any = {
+        tagName: tag.toUpperCase(),
+        _className: '',
+        get className() { return Array.from(classes).join(' '); },
+        set className(v: string) {
+          classes.clear();
+          v.split(' ').filter(Boolean).forEach(c => classes.add(c));
+        },
+        classList: {
+          toggle(cls: string, force?: boolean) {
+            if (force === true) classes.add(cls);
+            else if (force === false) classes.delete(cls);
+            else if (classes.has(cls)) classes.delete(cls);
+            else classes.add(cls);
+          },
+          contains(cls: string) { return classes.has(cls); }
+        },
+        style: {},
+        children: [] as any[],
+        attributes: {} as Record<string, string>,
+        _innerHTML: '',
+        get innerHTML() { return this._innerHTML; },
+        set innerHTML(val: string) {
+          this._innerHTML = val;
+          if (val === '') this.children = [];
+        },
+        textContent: '',
+        setAttribute(k: string, v: string) { this.attributes[k] = v; },
+        getAttribute(k: string) { return this.attributes[k]; },
+        appendChild(child: any) { this.children.push(child); return child; },
+        addEventListener() {},
+        removeEventListener() {},
+        closest: () => null,
+      };
+      if (tag === 'canvas') {
+        el.getContext = () => ({
+          save: () => {},
+          restore: () => {},
+          scale: () => {},
+          translate: () => {},
+          drawImage: () => {},
+          beginPath: () => {},
+          moveTo: () => {},
+          lineTo: () => {},
+          stroke: () => {},
+          fillRect: () => {},
+          setLineDash: () => {},
+          clearRect: () => {},
+          rect: () => {},
+          clip: () => {},
+          fillText: () => {},
+          imageSmoothingEnabled: false,
+        });
+      }
+      return el;
+    };
+
+    (globalThis as any).document.createElement = makeEl;
+
+    const container = makeEl('div');
+    const bookCanvas = new BookCanvas({
+      container,
+      defaultViewMode: 'single',
+    });
+    bookCanvas.setBook(sampleBook);
+
+    // 1. Text selection must be OFF by default
+    expect(bookCanvas.isTextSelectionEnabled()).toBe(false);
+
+    const stageEl = container.children[0];
+    expect(stageEl.classList.contains('text-selection-enabled')).toBe(false);
+
+    // 2. Toggle text selection ON
+    bookCanvas.setTextSelectionEnabled(true);
+    expect(bookCanvas.isTextSelectionEnabled()).toBe(true);
+    expect(stageEl.classList.contains('text-selection-enabled')).toBe(true);
+
+    // 3. Navigation buttons work regardless of text selection state
+    expect(bookCanvas.hitTestButtons(116, 160)).toBe('forward');
+
+    // 4. Toggle text selection back OFF
+    bookCanvas.setTextSelectionEnabled(false);
+    expect(bookCanvas.isTextSelectionEnabled()).toBe(false);
+    expect(stageEl.classList.contains('text-selection-enabled')).toBe(false);
+  });
+
   it('resets formatting styles across explicit newlines without leaking bold or color', () => {
     // In Minecraft Java Edition, a newline starts unformatted unless explicitly styled.
     const rawMultiLine = '§c§lBold Red Header\nSecond line';
@@ -248,6 +341,10 @@ describe('Accessibility Text Layer & Arrow Symmetry', () => {
       const el: any = {
         tagName: tag.toUpperCase(),
         className: '',
+        classList: {
+          toggle: () => {},
+          contains: () => false,
+        },
         style: {},
         children: [] as any[],
         attributes: {} as Record<string, string>,
