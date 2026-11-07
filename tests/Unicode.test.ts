@@ -1,0 +1,89 @@
+import { describe, it, expect } from 'vitest';
+import { defaultGlyphAtlas } from '../src/engine/GlyphAtlas';
+import { splitTextToLines, BOOK_TEXT_WIDTH } from '../src/engine/StringSplitter';
+
+describe('Unicode & Symbol Chat Support', () => {
+  it('provides valid advances for Symbol Chat symbols', () => {
+    const symbols = ['♩', '♪', '♫', '♬', '⚔', '🛡', '★', '⚡', '✓', '①', '②'];
+    for (const sym of symbols) {
+      const adv = defaultGlyphAtlas.getAdvance(sym);
+      expect(adv).toBeGreaterThan(0);
+      expect(adv).toBeLessThanOrEqual(10);
+    }
+  });
+
+  it('measures CJK multilingual characters properly', () => {
+    const cjk = ['日', '本', '語', '你', '好', '한', '글'];
+    for (const char of cjk) {
+      const adv = defaultGlyphAtlas.getAdvance(char);
+      expect(adv).toBeGreaterThanOrEqual(6);
+      expect(adv).toBeLessThanOrEqual(10);
+    }
+  });
+
+  it('handles 4-byte surrogate pair symbols without breaking', () => {
+    const emojiSymbol = '🎵'; // U+1F3B5
+    const adv = defaultGlyphAtlas.getAdvance(emojiSymbol);
+    expect(adv).toBeGreaterThan(0);
+
+    const text = 'Music: 🎵 🎶 🎼 🔔';
+    const lines = splitTextToLines(text, BOOK_TEXT_WIDTH, defaultGlyphAtlas);
+    expect(lines.length).toBeGreaterThan(0);
+  });
+
+  it('wraps mixed symbol and text strings within 114px', () => {
+    const lineWithSymbols = '⚔ Sword 🛡 Shield ★ Star ⚡ Zap ♩ Melody ♫ Harmony';
+    const lines = splitTextToLines(lineWithSymbols, BOOK_TEXT_WIDTH, defaultGlyphAtlas);
+    expect(lines.length).toBeGreaterThan(1);
+    for (const line of lines) {
+      expect(line.width).toBeLessThanOrEqual(BOOK_TEXT_WIDTH);
+    }
+  });
+
+  it('loads custom resource pack bitmap providers and calculates exact Minecraft dimensions', async () => {
+    const mockProviders = [
+      {
+        type: 'bitmap',
+        file: 'font/logo/text.png',
+        ascent: 10,
+        height: 48,
+        chars: ['\uE109'],
+      },
+      {
+        type: 'bitmap',
+        file: 'font/emoji/stpattys/stpattys_money_jar.png',
+        ascent: 11,
+        height: 14,
+        chars: ['\uE155'],
+      },
+    ];
+
+    // Mock image resolver with known dimensions
+    const mockResolver = async (file: string) => {
+      if (file.includes('logo')) {
+        return { naturalWidth: 250, naturalHeight: 105 } as unknown as HTMLImageElement;
+      }
+      return { naturalWidth: 16, naturalHeight: 16 } as unknown as HTMLImageElement;
+    };
+
+    await defaultGlyphAtlas.loadBitmapProviders(mockProviders, mockResolver);
+
+    // Verify money jar (\uE155): height 14, ascent 11
+    const jarAdv = defaultGlyphAtlas.getAdvance('\uE155');
+    expect(jarAdv).toBe(15); // Math.floor(0.5 + 16 * (14/16)) + 1 = 15
+
+    const jarDraw = defaultGlyphAtlas.getGlyphDrawInfo('\uE155', '#ffffff', false);
+    expect(jarDraw).not.toBeNull();
+    expect(jarDraw?.dHeight).toBe(14);
+    expect(jarDraw?.yOffset).toBe(7 - 11); // -4
+
+    // Verify logo (\uE109): height 48, ascent 10
+    const logoAdv = defaultGlyphAtlas.getAdvance('\uE109');
+    expect(logoAdv).toBe(115); // Math.floor(0.5 + 250 * (48/105)) + 1 = 115
+
+    const logoDraw = defaultGlyphAtlas.getGlyphDrawInfo('\uE109', '#ffffff', false);
+    expect(logoDraw).not.toBeNull();
+    expect(logoDraw?.dHeight).toBe(48);
+    expect(logoDraw?.yOffset).toBe(7 - 10); // -3
+  });
+});

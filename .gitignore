@@ -1,0 +1,19 @@
+# Dependencies
+node_modules/
+
+# Production build output
+dist/
+
+# OS and Editor files
+.DS_Store
+Thumbs.db
+*.local
+.vscode/
+.idea/
+
+# Vite temporary files & cache
+.vite-temp/
+*.log
+
+# Temporary / duplicate unpacked raw pack (served from public/assets/packs/craftadia)
+customresourcepack/
