@@ -1,5 +1,11 @@
 import JSZip from 'jszip';
 
+export interface FontTexturePaths {
+  ascii?: string | HTMLImageElement;
+  accented?: string | HTMLImageElement;
+  nonlatin?: string | HTMLImageElement;
+}
+
 export interface ResourcePackInfo {
   id: string;
   name: string;
@@ -8,6 +14,7 @@ export interface ResourcePackInfo {
   fontBaseUrl?: string;
   fontProviders?: any[];
   fontTextureResolver?: (file: string) => Promise<HTMLImageElement | null>;
+  fontTextures?: FontTexturePaths;
   textures: {
     book: string;
     pageForward: string;
@@ -32,7 +39,7 @@ export class ResourcePackManager {
     this.packs.set('vanilla', {
       id: 'vanilla',
       name: 'Vanilla (Default 16x)',
-      description: 'Classic Minecraft written book texture',
+      description: 'Classic Minecraft written book texture and 16x font',
       iconUrl: `${this.baseAssetPath}/textures/gui/book.png`,
       textures: {
         book: `${this.baseAssetPath}/textures/gui/book.png`,
@@ -41,13 +48,18 @@ export class ResourcePackManager {
         pageBackward: `${this.baseAssetPath}/textures/gui/page_backward.png`,
         pageBackwardHover: `${this.baseAssetPath}/textures/gui/page_backward_highlighted.png`,
       },
+      fontTextures: {
+        ascii: `${this.baseAssetPath}/textures/font/ascii.png`,
+        accented: `${this.baseAssetPath}/textures/font/accented.png`,
+        nonlatin: `${this.baseAssetPath}/textures/font/nonlatin_european.png`,
+      },
     });
 
     // 2. Lithos 32x (HD)
     this.packs.set('lithos', {
       id: 'lithos',
       name: 'Lithos (HD 32x)',
-      description: 'High-definition 32x book texture by Eleazzaar',
+      description: 'High-definition 32x book texture and Lithos font by Eleazzaar',
       iconUrl: `${this.baseAssetPath}/packs/lithos/pack.png`,
       textures: {
         book: `${this.baseAssetPath}/packs/lithos/textures/gui/book.png`,
@@ -56,13 +68,18 @@ export class ResourcePackManager {
         pageBackward: `${this.baseAssetPath}/packs/lithos/textures/gui/page_backward.png`,
         pageBackwardHover: `${this.baseAssetPath}/packs/lithos/textures/gui/page_backward_highlighted.png`,
       },
+      fontTextures: {
+        ascii: `${this.baseAssetPath}/packs/lithos/textures/font/ascii.png`,
+        accented: `${this.baseAssetPath}/packs/lithos/textures/font/accented.png`,
+        nonlatin: `${this.baseAssetPath}/packs/lithos/textures/font/nonlatin_european.png`,
+      },
     });
 
     // 3. Craftadia Server Pack (Custom Emojis, Logo & Icons + Lithos HD Book)
     this.packs.set('craftadia', {
       id: 'craftadia',
       name: 'Craftadia (Server Pack)',
-      description: 'Official server pack with custom emoji fonts, banner logos, and rank tags',
+      description: 'Official server pack with custom emoji fonts, banner logos, and rank tags with Lithos HD font',
       iconUrl: `${this.baseAssetPath}/packs/craftadia/pack.png`,
       fontBaseUrl: `${this.baseAssetPath}/packs/craftadia/assets/minecraft`,
       textures: {
@@ -71,6 +88,11 @@ export class ResourcePackManager {
         pageForwardHover: `${this.baseAssetPath}/packs/lithos/textures/gui/page_forward_highlighted.png`,
         pageBackward: `${this.baseAssetPath}/packs/lithos/textures/gui/page_backward.png`,
         pageBackwardHover: `${this.baseAssetPath}/packs/lithos/textures/gui/page_backward_highlighted.png`,
+      },
+      fontTextures: {
+        ascii: `${this.baseAssetPath}/packs/lithos/textures/font/ascii.png`,
+        accented: `${this.baseAssetPath}/packs/lithos/textures/font/accented.png`,
+        nonlatin: `${this.baseAssetPath}/packs/lithos/textures/font/nonlatin_european.png`,
       },
     });
   }
@@ -215,6 +237,30 @@ export class ResourcePackManager {
       }
     }
 
+    // Search for font textures (ascii.png, accented.png, nonlatin_european.png)
+    const findFontTexture = async (fileName: string): Promise<string | undefined> => {
+      let f = zip.file(`assets/minecraft/textures/font/${fileName}`);
+      if (!f) f = zip.file(`textures/font/${fileName}`);
+      if (!f) {
+        const matches = zip.file(new RegExp(`textures/font/${fileName}$`, 'i'));
+        if (matches.length > 0) f = matches[0];
+      }
+      if (f) {
+        const blob = await f.async('blob');
+        return URL.createObjectURL(blob);
+      }
+      return undefined;
+    };
+
+    const zipAscii = await findFontTexture('ascii.png');
+    const zipAccented = await findFontTexture('accented.png');
+    const zipNonlatin = await findFontTexture('nonlatin_european.png');
+    const fontTextures: FontTexturePaths | undefined = (zipAscii || zipAccented || zipNonlatin) ? {
+      ascii: zipAscii,
+      accented: zipAccented,
+      nonlatin: zipNonlatin,
+    } : undefined;
+
     const customPackId = `custom_${Date.now()}`;
     const packInfo: ResourcePackInfo = {
       id: customPackId,
@@ -223,6 +269,7 @@ export class ResourcePackManager {
       iconUrl: iconUrl || bookUrl,
       fontProviders,
       fontTextureResolver,
+      fontTextures,
       textures: {
         book: bookUrl,
         pageForward,

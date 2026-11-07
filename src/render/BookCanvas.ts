@@ -120,6 +120,9 @@ export class BookCanvas {
 
   public async applyResourcePack(pack: ResourcePackInfo): Promise<void> {
     await this.loadTexturesFromPaths(pack.textures);
+    if (pack.fontTextures) {
+      await this.atlas.loadFontTextures(pack.fontTextures);
+    }
     if (pack.fontBaseUrl) {
       await this.atlas.loadFromFontDirectory(pack.fontBaseUrl);
     } else if (pack.fontProviders && pack.fontTextureResolver) {

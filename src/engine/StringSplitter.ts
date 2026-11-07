@@ -67,7 +67,6 @@ export function splitTextToLines(
     // Wrap the tokens in this paragraph
     let currentLineSpans: FormattedSpan[] = [];
     let currentLineWidth = 0;
-    let isWrappedLine = false;
 
     for (const span of spans) {
       // Remember the last style seen
@@ -89,10 +88,7 @@ export function splitTextToLines(
           tokenWidth += atlas.getAdvance(ch, span.bold);
         }
 
-        // Only skip pure whitespace if this line was created by automatic word wrap
-        if (/^\s+$/.test(token) && currentLineSpans.length === 0 && isWrappedLine) {
-          continue;
-        }
+        const isWhitespace = /^\s+$/.test(token);
 
         if (currentLineWidth + tokenWidth <= maxWidth) {
           // Fits on current line
@@ -101,39 +97,34 @@ export function splitTextToLines(
             text: token,
           });
           currentLineWidth += tokenWidth;
-          if (!/^\s+$/.test(token)) {
-            isWrappedLine = false;
-          }
         } else {
-          // Doesn't fit. If whitespace, wrap without adding space
-          if (/^\s+$/.test(token)) {
-            resultLines.push({ spans: currentLineSpans, width: currentLineWidth });
-            currentLineSpans = [];
-            currentLineWidth = 0;
-            isWrappedLine = true;
-            continue;
-          }
-
-          // If current line already has content, wrap and start a new line
+          // Doesn't fit on current line.
+          // If current line has content, wrap it.
           if (currentLineSpans.length > 0) {
+            // If the overflowing token is a single inter-word space at the end of the line,
+            // wrap and discard only that single space.
+            if (isWhitespace && token === ' ') {
+              resultLines.push({ spans: currentLineSpans, width: currentLineWidth });
+              currentLineSpans = [];
+              currentLineWidth = 0;
+              continue;
+            }
+
+            // Otherwise (word or multi-space indentation), wrap current line and carry token to the next line.
             resultLines.push({ spans: currentLineSpans, width: currentLineWidth });
             currentLineSpans = [];
             currentLineWidth = 0;
-            isWrappedLine = true;
           }
 
-          // If the word fits on an empty line, put it there
+          // Now place the token on the new line
           if (tokenWidth <= maxWidth) {
             currentLineSpans.push({
               ...span,
               text: token,
             });
             currentLineWidth = tokenWidth;
-            if (!/^\s+$/.test(token)) {
-              isWrappedLine = false;
-            }
           } else {
-            // Word itself is longer than maxWidth (114px), break character by character
+            // Word/token itself is longer than maxWidth (114px), break character by character
             let subWord = '';
             let subWidth = 0;
 
@@ -146,7 +137,6 @@ export function splitTextToLines(
                 });
                 subWord = ch;
                 subWidth = chAdv;
-                isWrappedLine = true;
               } else {
                 subWord += ch;
                 subWidth += chAdv;
@@ -156,7 +146,6 @@ export function splitTextToLines(
             if (subWord.length > 0) {
               currentLineSpans.push({ ...span, text: subWord });
               currentLineWidth = subWidth;
-              isWrappedLine = false;
             }
           }
         }

@@ -52,10 +52,10 @@ export class BookViewer {
       this.loadIssue(this.currentIssueId),
     ]);
 
-    // 2. Load custom Craftadia server pack (emojis & logos) asynchronously without delaying initial display
+    // 2. Load custom Craftadia server pack (emojis & logos + Lithos HD font & book)
     const craftadiaPack = this.packManager.getPack('craftadia');
     if (craftadiaPack) {
-      this.bookCanvas.applyResourcePack(craftadiaPack).catch((err) => {
+      await this.bookCanvas.applyResourcePack(craftadiaPack).catch((err) => {
         console.warn('Could not apply server resource pack:', err);
       });
     }
