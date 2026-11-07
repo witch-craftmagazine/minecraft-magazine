@@ -32,18 +32,21 @@ export class BookViewer {
       onPageChange: (page, total) => this.updatePageIndicator(page, total),
     });
 
-    await this.bookCanvas.init();
+    this.setupListeners();
 
-    // Apply Craftadia custom resource pack by default for custom fonts, emojis, and logos
+    // 1. Initialize canvas textures & load initial magazine issue concurrently
+    await Promise.all([
+      this.bookCanvas.init(),
+      this.loadIssue(this.currentIssueId),
+    ]);
+
+    // 2. Load custom Craftadia server pack (emojis & logos) asynchronously without delaying initial display
     const craftadiaPack = this.packManager.getPack('craftadia');
     if (craftadiaPack) {
-      await this.bookCanvas.applyResourcePack(craftadiaPack);
+      this.bookCanvas.applyResourcePack(craftadiaPack).catch((err) => {
+        console.warn('Could not apply server resource pack:', err);
+      });
     }
-
-    // Load initial Witch-Craft magazine issue
-    await this.loadIssue(this.currentIssueId);
-
-    this.setupListeners();
   }
 
   private resolveInitialIssueFromHash(): void {

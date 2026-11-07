@@ -55,6 +55,15 @@ body {
   justify-content: center;
   align-items: center;
   user-select: none;
+  -webkit-user-select: none;
+  touch-action: manipulation;
+}
+
+.canvas-wrapper canvas {
+  touch-action: manipulation;
+  -webkit-touch-callout: none;
+  -webkit-user-select: none;
+  user-select: none;
 }
 
 /* --- SLEEK FLOATING MAGAZINE SELECTOR --- */

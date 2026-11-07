@@ -190,7 +190,6 @@ export class GlyphAtlas {
   private loadImage(src: string): Promise<HTMLImageElement> {
     return new Promise((resolve, reject) => {
       const img = new Image();
-      img.crossOrigin = 'anonymous';
       img.onload = () => resolve(img);
       img.onerror = (e) => reject(new Error(`Failed to load font image: ${src} (${e})`));
       img.src = src;
@@ -217,107 +216,109 @@ export class GlyphAtlas {
     providers: any[],
     textureResolver: (file: string) => Promise<HTMLImageElement | null>
   ): Promise<void> {
-    const helperCanvas = typeof document !== 'undefined' ? document.createElement('canvas') : null;
-    const helperCtx = helperCanvas?.getContext('2d', { willReadFrequently: true });
-
-    for (const provider of providers) {
-      if (provider.type !== 'bitmap' || !provider.file || !provider.chars || provider.chars.length === 0) {
-        continue;
-      }
-
-      try {
-        const img = await textureResolver(provider.file);
-        if (!img) continue;
-
-        const rows = provider.chars.length;
-        const cols = provider.chars[0].length;
-        if (rows === 0 || cols === 0) continue;
-
-        const cellW = Math.floor(img.naturalWidth / cols);
-        const cellH = Math.floor(img.naturalHeight / rows);
-        if (cellW <= 0 || cellH <= 0) continue;
-
-        const targetHeight = provider.height ?? 8;
-        const ascent = provider.ascent ?? 7;
-        const pixelScale = targetHeight / cellH;
-        const yOffset = 7 - ascent;
-
-        let isColor = false;
-        let imgData: ImageData | null = null;
-
-        if (helperCanvas && helperCtx) {
-          helperCanvas.width = img.naturalWidth;
-          helperCanvas.height = img.naturalHeight;
-          helperCtx.clearRect(0, 0, img.naturalWidth, img.naturalHeight);
-          helperCtx.drawImage(img, 0, 0);
-          try {
-            imgData = helperCtx.getImageData(0, 0, img.naturalWidth, img.naturalHeight);
-            const d = imgData.data;
-            for (let p = 0; p < d.length; p += 4) {
-              if (d[p + 3] > 0 && (Math.abs(d[p] - d[p + 1]) > 8 || Math.abs(d[p + 1] - d[p + 2]) > 8)) {
-                isColor = true;
-                break;
-              }
-            }
-          } catch {
-            // ignore
-          }
+    await Promise.all(
+      providers.map(async (provider) => {
+        if (provider.type !== 'bitmap' || !provider.file || !provider.chars || provider.chars.length === 0) {
+          return;
         }
 
-        for (let r = 0; r < rows; r++) {
-          const rowStr = provider.chars[r];
-          for (let c = 0; c < rowStr.length; c++) {
-            const char = rowStr[c];
-            if (!char || char === '\u0000') continue;
+        try {
+          const img = await textureResolver(provider.file);
+          if (!img) return;
 
-            let actualWidth = cellW;
-            if (imgData) {
-              const d = imgData.data;
-              const imgW = img.naturalWidth;
-              for (let w = cellW - 1; w >= 0; w--) {
-                let hasPixel = false;
-                const xPixel = c * cellW + w;
-                for (let y = 0; y < cellH; y++) {
-                  const yPixel = r * cellH + y;
-                  const alpha = d[(yPixel * imgW + xPixel) * 4 + 3];
-                  if (alpha > 0) {
-                    hasPixel = true;
+          const rows = provider.chars.length;
+          const cols = provider.chars[0].length;
+          if (rows === 0 || cols === 0) return;
+
+          const cellW = Math.floor(img.naturalWidth / cols);
+          const cellH = Math.floor(img.naturalHeight / rows);
+          if (cellW <= 0 || cellH <= 0) return;
+
+          const targetHeight = provider.height ?? 8;
+          const ascent = provider.ascent ?? 7;
+          const pixelScale = targetHeight / cellH;
+          const yOffset = 7 - ascent;
+
+          let isColor = false;
+          let imgData: ImageData | null = null;
+
+          if (typeof document !== 'undefined') {
+            const canvas = document.createElement('canvas');
+            canvas.width = img.naturalWidth;
+            canvas.height = img.naturalHeight;
+            const ctx = canvas.getContext('2d', { willReadFrequently: true });
+            if (ctx) {
+              ctx.drawImage(img, 0, 0);
+              try {
+                imgData = ctx.getImageData(0, 0, img.naturalWidth, img.naturalHeight);
+                const d = imgData.data;
+                for (let p = 0; p < d.length; p += 4) {
+                  if (d[p + 3] > 0 && (Math.abs(d[p] - d[p + 1]) > 8 || Math.abs(d[p + 1] - d[p + 2]) > 8)) {
+                    isColor = true;
                     break;
                   }
                 }
-                if (hasPixel) {
-                  actualWidth = w + 1;
-                  break;
-                }
+              } catch {
+                // ignore
               }
             }
-
-            const advance = Math.max(1, Math.floor(0.5 + actualWidth * pixelScale) + 1);
-            const dWidth = Math.round(cellW * pixelScale);
-            const dHeight = targetHeight;
-
-            this.customGlyphs.set(char, {
-              image: img,
-              sx: c * cellW,
-              sy: r * cellH,
-              sWidth: cellW,
-              sHeight: cellH,
-              dWidth,
-              dHeight,
-              yOffset,
-              advance,
-              ascent,
-              isColor,
-              file: provider.file,
-            });
-
-            this.advances.set(char, advance);
           }
+
+          for (let r = 0; r < rows; r++) {
+            const rowStr = provider.chars[r];
+            for (let c = 0; c < rowStr.length; c++) {
+              const char = rowStr[c];
+              if (!char || char === '\u0000') continue;
+
+              let actualWidth = cellW;
+              if (imgData) {
+                const d = imgData.data;
+                const imgW = img.naturalWidth;
+                for (let w = cellW - 1; w >= 0; w--) {
+                  let hasPixel = false;
+                  const xPixel = c * cellW + w;
+                  for (let y = 0; y < cellH; y++) {
+                    const yPixel = r * cellH + y;
+                    const alpha = d[(yPixel * imgW + xPixel) * 4 + 3];
+                    if (alpha > 0) {
+                      hasPixel = true;
+                      break;
+                    }
+                  }
+                  if (hasPixel) {
+                    actualWidth = w + 1;
+                    break;
+                  }
+                }
+              }
+
+              const advance = Math.max(1, Math.floor(0.5 + actualWidth * pixelScale) + 1);
+              const dWidth = Math.round(cellW * pixelScale);
+              const dHeight = targetHeight;
+
+              this.customGlyphs.set(char, {
+                image: img,
+                sx: c * cellW,
+                sy: r * cellH,
+                sWidth: cellW,
+                sHeight: cellH,
+                dWidth,
+                dHeight,
+                yOffset,
+                advance,
+                ascent,
+                isColor,
+                file: provider.file,
+              });
+
+              this.advances.set(char, advance);
+            }
+          }
+        } catch (e) {
+          console.warn(`Failed loading provider for ${provider.file}:`, e);
         }
-      } catch (e) {
-        console.warn(`Failed loading provider for ${provider.file}:`, e);
-      }
-    }
+      })
+    );
   }
 
   private getTintedCustomImage(file: string, img: HTMLImageElement, colorHex: string): HTMLCanvasElement | null {
