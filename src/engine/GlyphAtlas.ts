@@ -96,6 +96,9 @@ export class GlyphAtlas {
    */
   public getAdvance(char: string, isBold = false): number {
     if (char === '§' || char === '\n' || char === '\r') return 0;
+    // In Minecraft Java Edition, spaces (' ' and non-breaking space) have a fixed width of 4px
+    // and bold formatting never increases space width (SpaceGlyphInfo bold offset is 0.0f).
+    if (char === ' ' || char === '\u00a0') return 4;
 
     const custom = this.customGlyphs.get(char);
     if (custom) {
@@ -269,6 +272,45 @@ export class GlyphAtlas {
       img.onerror = (e) => reject(new Error(`Failed to load font image: ${src} (${e})`));
       img.src = src;
     });
+  }
+
+  /**
+   * Replaces the base font sheets (e.g. ascii, accented, nonlatin) with custom pack textures (such as Lithos HD 32x).
+   */
+  public async loadFontTextures(textures: {
+    ascii?: string | HTMLImageElement;
+    accented?: string | HTMLImageElement;
+    nonlatin?: string | HTMLImageElement;
+  }): Promise<void> {
+    const promises: Promise<void>[] = [];
+
+    if (textures.ascii) {
+      promises.push(
+        (async () => {
+          const img = typeof textures.ascii === 'string' ? await this.loadImage(textures.ascii) : textures.ascii;
+          if (img) this.sheets['ascii'] = img;
+        })()
+      );
+    }
+    if (textures.accented) {
+      promises.push(
+        (async () => {
+          const img = typeof textures.accented === 'string' ? await this.loadImage(textures.accented) : textures.accented;
+          if (img) this.sheets['accented'] = img;
+        })()
+      );
+    }
+    if (textures.nonlatin) {
+      promises.push(
+        (async () => {
+          const img = typeof textures.nonlatin === 'string' ? await this.loadImage(textures.nonlatin) : textures.nonlatin;
+          if (img) this.sheets['nonlatin'] = img;
+        })()
+      );
+    }
+
+    await Promise.all(promises);
+    this.tintedSheets.clear();
   }
 
   public async loadFromFontDirectory(fontDir: string): Promise<void> {
@@ -486,6 +528,9 @@ export class GlyphAtlas {
           sy,
           sWidth: cellW,
           sHeight: cellH,
+          dWidth: entry.cellWidth ?? 8,
+          dHeight: entry.cellHeight ?? 8,
+          yOffset: (entry as any).yOffset ?? 0,
           advance: isBold ? entry.advance + 1 : entry.advance,
           ascent: 7,
         };
