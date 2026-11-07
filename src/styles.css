@@ -111,9 +111,75 @@ body {
   display: flex;
   justify-content: center;
   align-items: center;
-  user-select: none;
-  -webkit-user-select: none;
   touch-action: manipulation;
+}
+
+.book-stage {
+  position: relative;
+  display: inline-block;
+  margin: 0 auto;
+}
+
+.book-text-layer {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+  overflow: hidden;
+}
+
+.accessible-page {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+}
+
+.accessible-line {
+  position: absolute;
+  white-space: pre;
+  font-family: 'Minecraftia', monospace;
+  color: transparent;
+  pointer-events: auto;
+  user-select: text;
+  -webkit-user-select: text;
+  cursor: text;
+}
+
+.accessible-line::selection {
+  background: rgba(200, 140, 20, 0.35);
+  color: transparent;
+}
+
+.accessible-nav-btn {
+  position: absolute;
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  pointer-events: auto;
+  border-radius: 2px;
+}
+
+.accessible-nav-btn:focus-visible {
+  outline: 2px solid #ffaa00;
+  outline-offset: 1px;
+  background-color: rgba(255, 170, 0, 0.2);
+}
+
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
 }
 
 .canvas-wrapper canvas {
