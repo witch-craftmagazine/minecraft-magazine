@@ -58,7 +58,7 @@ export class ResourcePackManager {
       },
     });
 
-    // 3. Craftadia Server Pack (Custom Emojis, Logo & Icons)
+    // 3. Craftadia Server Pack (Custom Emojis, Logo & Icons + Lithos HD Book)
     this.packs.set('craftadia', {
       id: 'craftadia',
       name: 'Craftadia (Server Pack)',
@@ -66,11 +66,11 @@ export class ResourcePackManager {
       iconUrl: `${this.baseAssetPath}/packs/craftadia/pack.png`,
       fontBaseUrl: `${this.baseAssetPath}/packs/craftadia/assets/minecraft`,
       textures: {
-        book: `${this.baseAssetPath}/textures/gui/book.png`,
-        pageForward: `${this.baseAssetPath}/textures/gui/page_forward.png`,
-        pageForwardHover: `${this.baseAssetPath}/textures/gui/page_forward_highlighted.png`,
-        pageBackward: `${this.baseAssetPath}/textures/gui/page_backward.png`,
-        pageBackwardHover: `${this.baseAssetPath}/textures/gui/page_backward_highlighted.png`,
+        book: `${this.baseAssetPath}/packs/lithos/textures/gui/book.png`,
+        pageForward: `${this.baseAssetPath}/packs/lithos/textures/gui/page_forward.png`,
+        pageForwardHover: `${this.baseAssetPath}/packs/lithos/textures/gui/page_forward_highlighted.png`,
+        pageBackward: `${this.baseAssetPath}/packs/lithos/textures/gui/page_backward.png`,
+        pageBackwardHover: `${this.baseAssetPath}/packs/lithos/textures/gui/page_backward_highlighted.png`,
       },
     });
   }

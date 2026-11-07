@@ -77,11 +77,11 @@ export class BookCanvas {
     await Promise.all([
       this.atlas.load(this.baseAssetPath),
       this.loadTexturesFromPaths({
-        book: `${this.baseAssetPath}/textures/gui/book.png`,
-        pageForward: `${this.baseAssetPath}/textures/gui/page_forward.png`,
-        pageForwardHover: `${this.baseAssetPath}/textures/gui/page_forward_highlighted.png`,
-        pageBackward: `${this.baseAssetPath}/textures/gui/page_backward.png`,
-        pageBackwardHover: `${this.baseAssetPath}/textures/gui/page_backward_highlighted.png`,
+        book: `${this.baseAssetPath}/packs/lithos/textures/gui/book.png`,
+        pageForward: `${this.baseAssetPath}/packs/lithos/textures/gui/page_forward.png`,
+        pageForwardHover: `${this.baseAssetPath}/packs/lithos/textures/gui/page_forward_highlighted.png`,
+        pageBackward: `${this.baseAssetPath}/packs/lithos/textures/gui/page_backward.png`,
+        pageBackwardHover: `${this.baseAssetPath}/packs/lithos/textures/gui/page_backward_highlighted.png`,
       }),
     ]);
 

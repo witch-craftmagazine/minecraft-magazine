@@ -1,6 +1,6 @@
-# Witch-Craft Magazine — Minecraft Written Book Reader
+# witchcraft...magazine
 
-A pixel-perfect web reader and emulator for Minecraft written books, featuring the complete in-game **Witch-Craft Magazine** series authored by **StarSweetpea** on Deathcap Island (Craftadia).
+A pixel-perfect web reader for Minecraft written books, featuring the complete in-game **Witch-Craft Magazine** series authored by **StarSweetpea** on Deathcap Island (Craftadia).
 
 Built using authentic Minecraft Java font metrics, genuine vanilla UI textures, and layout rules reverse-engineered directly from Minecraft's `BookViewScreen` and `BitmapProvider`.
 
