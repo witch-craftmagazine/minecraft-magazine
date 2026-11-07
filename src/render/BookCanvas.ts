@@ -98,10 +98,7 @@ export class BookCanvas {
       await this.atlas.loadBitmapProviders(pack.fontProviders, pack.fontTextureResolver);
     }
     // Re-paginate pages with updated character advances
-    this.paginatedPages = this.book.pages.map(rawPage => {
-      const lines = splitTextToLines(rawPage, BOOK_TEXT_WIDTH, this.atlas);
-      return lines;
-    });
+    this.recalculatePages();
     this.render();
   }
 

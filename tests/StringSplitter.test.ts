@@ -59,4 +59,21 @@ describe('StringSplitter and Pagination', () => {
     expect(lines[0].spans[0].color).toBe('#AA0000');
     expect(lines[1].spans[0].color).toBe('#AA0000');
   });
+
+  it('preserves leading spaces on explicit lines and ASCII art', () => {
+    const artText = '      **{Title}**\n              __/)\n           .-(__(=:';
+    const lines = splitTextToLines(artText, BOOK_TEXT_WIDTH, defaultGlyphAtlas);
+
+    expect(lines).toHaveLength(3);
+    expect(lines[0].spans.map(s => s.text).join('')).toBe('      **{Title}**');
+    expect(lines[1].spans.map(s => s.text).join('')).toBe('              __/)');
+    expect(lines[2].spans.map(s => s.text).join('')).toBe('           .-(__(=:');
+  });
+
+  it('preserves multiple spaces within lines', () => {
+    const text = 'Item 1:     10 Gold';
+    const lines = splitTextToLines(text, BOOK_TEXT_WIDTH, defaultGlyphAtlas);
+
+    expect(lines[0].spans.map(s => s.text).join('')).toBe('Item 1:     10 Gold');
+  });
 });
