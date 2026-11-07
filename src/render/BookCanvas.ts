@@ -261,6 +261,7 @@ export class BookCanvas {
     const clamped = Math.max(0, Math.min(this.paginatedPages.length - 1, pageIndex));
     if (clamped !== this.currentPage) {
       this.currentPage = clamped;
+      this.highlightedLineIndex = null;
       soundManager.playPageTurn();
       this.notifyPageChange();
       this.render();
@@ -271,11 +272,13 @@ export class BookCanvas {
     const step = this.viewMode === 'double' ? 2 : 1;
     if (this.currentPage + step < this.paginatedPages.length) {
       this.currentPage += step;
+      this.highlightedLineIndex = null;
       soundManager.playPageTurn();
       this.notifyPageChange();
       this.render();
     } else if (this.viewMode === 'double' && this.currentPage + 1 < this.paginatedPages.length) {
       this.currentPage += 1;
+      this.highlightedLineIndex = null;
       soundManager.playPageTurn();
       this.notifyPageChange();
       this.render();
@@ -286,11 +289,13 @@ export class BookCanvas {
     const step = this.viewMode === 'double' ? 2 : 1;
     if (this.currentPage - step >= 0) {
       this.currentPage -= step;
+      this.highlightedLineIndex = null;
       soundManager.playPageTurn();
       this.notifyPageChange();
       this.render();
     } else if (this.currentPage > 0) {
       this.currentPage = 0;
+      this.highlightedLineIndex = null;
       soundManager.playPageTurn();
       this.notifyPageChange();
       this.render();
@@ -322,6 +327,8 @@ export class BookCanvas {
 
   public render(): void {
     if (!this.bookBg) return;
+
+    this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
 
     this.ctx.save();
     this.ctx.scale(this.scale, this.scale);
@@ -436,7 +443,12 @@ export class BookCanvas {
       this.renderTextLineRightAligned(pageMsg, pageIndicatorRightX, 16, '#000000');
     }
 
-    // 3. Draw text lines (up to 14 lines)
+    // 3. Draw text lines (up to 14 lines, clipped strictly to book page area)
+    this.ctx.save();
+    this.ctx.beginPath();
+    this.ctx.rect(textStartX - 2, 26, BOOK_TEXT_WIDTH + 8, LINES_PER_PAGE * 9 + 4);
+    this.ctx.clip();
+
     const pageLines = this.paginatedPages[pageIndex] || [];
     for (let i = 0; i < Math.min(LINES_PER_PAGE, pageLines.length); i++) {
       const line = pageLines[i];
@@ -499,6 +511,7 @@ export class BookCanvas {
         }
       }
     }
+    this.ctx.restore();
 
     // 3.5. Draw Debug Layout Grid (if inspector grid toggle active)
     if (this.showLayoutGrid) {

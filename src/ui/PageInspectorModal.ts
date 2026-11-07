@@ -63,6 +63,8 @@ export class PageInspectorModal {
   }
 
   public onPageTurned(): void {
+    this.selectedLineIndex = null;
+    this.bookCanvas.setHighlightedLine(null);
     if (this.isOpen) {
       this.render();
     }
@@ -132,7 +134,7 @@ export class PageInspectorModal {
         <div class="inspector-stats-row">
           <div class="inspector-stat-pill ${isOverflowing ? 'stat-warning' : 'stat-success'}">
             <strong>Lines:</strong> ${pageLines.length} / ${LINES_PER_PAGE}
-            ${isOverflowing ? `⚠ (+${pageLines.length - LINES_PER_PAGE} overflow past line 14)` : '✓ All fit on page'}
+            ${isOverflowing ? `ℹ (+${pageLines.length - LINES_PER_PAGE} unrendered: Minecraft 14-line limit)` : '✓ All fit on page'}
           </div>
           <div class="inspector-stat-pill">
             <strong>Characters:</strong> ${rawPageText.length} chars
@@ -190,7 +192,7 @@ export class PageInspectorModal {
                     <div class="line-bar-fill ${widthClass}" style="width: ${widthPct}%"></div>
                   </div>
                   <span class="line-width-label ${widthClass}">${width} / ${BOOK_TEXT_WIDTH} px</span>
-                  ${isOver14 ? '<span class="line-status-pill pill-overflow">Exceeds 14</span>' : ''}
+                  ${isOver14 ? '<span class="line-status-pill pill-overflow">Past line 14 (hidden)</span>' : ''}
                 </div>
               </div>
 
