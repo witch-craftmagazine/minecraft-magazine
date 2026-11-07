@@ -166,6 +166,14 @@ export function splitTextToLines(
     }
   }
 
+  // Trim trailing empty lines at the very end of the page (e.g. from trailing \n before #- delimiters)
+  while (resultLines.length > 0 && resultLines[resultLines.length - 1].spans.length === 0) {
+    resultLines.pop();
+  }
+  if (resultLines.length === 0) {
+    resultLines.push({ spans: [], width: 0 });
+  }
+
   return resultLines;
 }
 

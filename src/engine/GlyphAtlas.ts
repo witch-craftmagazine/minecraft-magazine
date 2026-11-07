@@ -28,6 +28,31 @@ export interface CustomBitmapGlyphEntry {
   file: string;
 }
 
+export const MINECRAFT_SYMBOL_ADVANCES: Record<string, number> = {
+  '§': 0,
+  '\n': 0,
+  '\r': 0,
+  // Astrological zodiac symbols (Unifont halfwidth glyphs, 7px in MC)
+  '♈': 7, '♉': 7, '♊': 7, '♋': 7, '♌': 7, '♍': 7,
+  '♎': 7, '♏': 7, '♐': 7, '♑': 7, '♒': 7, '♓': 7,
+  // Sparkles, stars, dots & decorative operators
+  '✧': 5, '⋄': 4, '⋆': 4, '⋅': 3, '✦': 5, '★': 7, '☆': 7,
+  '✯': 7, '✰': 7, '✩': 7, '✵': 7, '✶': 7, '✹': 7, '✷': 7,
+  '•': 3, '·': 3, '…': 6, '“': 4, '”': 4, '‘': 2, '’': 2,
+  '☠': 7, '☕': 7, '✐': 7, '⚘': 6, '⛏': 7, '⚑': 7, '☾': 7, '☽': 7,
+  '━': 5, '─': 5, '❍': 7, '⊲': 5, '⊳': 5, 'Ⅱ': 5, '↻': 7, '↺': 7,
+  '╭': 5, '╮': 5, '╯': 5, '╰': 5, '┈': 5, '➤': 6, '┊': 4,
+  '░': 5, '▒': 5, '▓': 5, '█': 6,
+  '╔': 6, '╗': 6, '╚': 6, '╝': 6, '═': 6, '║': 6, '┌': 6, '┐': 6, '└': 6, '┘': 6,
+  '☹': 7, '☺': 7, '☻': 7, '♡': 7, '♥': 7, '♦': 7, '♣': 7, '♠': 7,
+  // Superscript & small-caps letters (Unifont, typically 3-4px)
+  'ᵀ': 4, 'ʰ': 4, 'ᵉ': 4, 'ᴰ': 4, 'ᵛ': 4, 'ⁱ': 2, 'ˡ': 2, 'ᴵ': 2, 'ˢ': 3, 'ⁿ': 4,
+  'ᶠ': 4, 'ᵒ': 4, 'ʳ': 3, 'ᵗ': 3, 'ᵘ': 4, 'ᵏ': 4, 'ʷ': 5, 'ᵃ': 4, 'ᵇ': 4, 'ᶜ': 4,
+  'ᵈ': 4, 'ᵍ': 4, 'ʲ': 3, 'ᵐ': 5, 'ᵖ': 4, 'ʸ': 4, '⁻': 3,
+  // In-game ASCII art & player symbols
+  '™': 6, '⏼': 7, '⯪': 5,
+};
+
 export class GlyphAtlas {
   private advances: Map<string, number> = new Map();
   private glyphMap: Map<string, GlyphMapEntry> = new Map();
@@ -50,6 +75,9 @@ export class GlyphAtlas {
         this.advances.set(item.char, item.pixels + 1); // standard character advance is width + 1
       }
     }
+    for (const [char, adv] of Object.entries(MINECRAFT_SYMBOL_ADVANCES)) {
+      this.advances.set(char, adv);
+    }
   }
 
   private initMeasureCanvas(): void {
@@ -67,6 +95,8 @@ export class GlyphAtlas {
    * its pixel advance to match Minecraft Unifont proportions.
    */
   public getAdvance(char: string, isBold = false): number {
+    if (char === '§' || char === '\n' || char === '\r') return 0;
+
     const custom = this.customGlyphs.get(char);
     if (custom) {
       return isBold ? custom.advance + 1 : custom.advance;
@@ -154,6 +184,23 @@ export class GlyphAtlas {
 
             const rows = provider.chars.length;
             const cols = provider.chars[0].length;
+            const img = this.sheets[sheetName];
+            let imgData: ImageData | null = null;
+
+            if (img && typeof document !== 'undefined') {
+              const canvas = document.createElement('canvas');
+              canvas.width = img.naturalWidth || img.width;
+              canvas.height = img.naturalHeight || img.height;
+              const ctx = canvas.getContext('2d', { willReadFrequently: true });
+              if (ctx) {
+                ctx.drawImage(img, 0, 0);
+                try {
+                  imgData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+                } catch {
+                  // ignore
+                }
+              }
+            }
 
             for (let r = 0; r < rows; r++) {
               const rowStr = provider.chars[r];
@@ -161,7 +208,35 @@ export class GlyphAtlas {
                 const char = rowStr[c];
                 if (char === '\u0000') continue;
 
-                const advance = this.getAdvance(char, false);
+                let advance = this.advances.get(char);
+                if (advance === undefined) {
+                  let actualWidth = 7;
+                  if (imgData && img) {
+                    const d = imgData.data;
+                    const imgW = img.naturalWidth || img.width;
+                    const cellW = Math.floor(imgW / cols);
+                    const cellH = Math.floor((img.naturalHeight || img.height) / rows);
+                    for (let w = cellW - 1; w >= 0; w--) {
+                      let hasPixel = false;
+                      const xPixel = c * cellW + w;
+                      for (let y = 0; y < cellH; y++) {
+                        const yPixel = r * cellH + y;
+                        const alpha = d[(yPixel * imgW + xPixel) * 4 + 3];
+                        if (alpha > 0) {
+                          hasPixel = true;
+                          break;
+                        }
+                      }
+                      if (hasPixel) {
+                        actualWidth = w + 1;
+                        break;
+                      }
+                    }
+                  }
+                  advance = char === ' ' ? 4 : Math.max(1, actualWidth + 1);
+                  this.advances.set(char, advance);
+                }
+
                 const rawWidth = char === ' ' ? 4 : Math.max(1, advance - 1);
 
                 this.glyphMap.set(char, {

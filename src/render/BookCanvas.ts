@@ -1,6 +1,6 @@
 import { LineLayout, MinecraftBook, ViewMode } from '../engine/types';
 import { defaultGlyphAtlas, GlyphAtlas } from '../engine/GlyphAtlas';
-import { splitTextToLines, paginateLines, LINES_PER_PAGE, BOOK_TEXT_WIDTH } from '../engine/StringSplitter';
+import { splitTextToLines, LINES_PER_PAGE, BOOK_TEXT_WIDTH } from '../engine/StringSplitter';
 import { soundManager } from './SoundEffects';
 import { ResourcePackInfo } from '../engine/ResourcePackManager';
 
@@ -30,7 +30,11 @@ export class BookCanvas {
   private currentPage = 0; // 0-indexed
   private viewMode: ViewMode = 'double';
   private scale = 3; // Integer scaling factor
-  private showPageIndicator = false; // Off by default (toggleable via setShowPageIndicator)
+  private showPageIndicator = false;
+
+  // Layout Debug & Inspector support
+  private showLayoutGrid = false;
+  private highlightedLineIndex: number | null = null; // Off by default (toggleable via setShowPageIndicator)
 
   // Textures
   private bookBg: HTMLImageElement | null = null;
@@ -151,17 +155,46 @@ export class BookCanvas {
   public recalculatePages(): void {
     const allPages: LineLayout[][] = [];
 
+    // Each Stendhal page (delimited by #-) corresponds strictly 1-to-1 with a reader page.
+    // In Minecraft Java Edition, written book pages have a fixed 14-line capacity and never auto-split.
     for (const rawPage of this.book.pages) {
       const lines = splitTextToLines(rawPage, BOOK_TEXT_WIDTH, this.atlas);
-      const subPages = paginateLines(lines, LINES_PER_PAGE);
-      for (const p of subPages) {
-        allPages.push(p);
-      }
+      allPages.push(lines);
     }
 
     this.paginatedPages = allPages.length > 0 ? allPages : [[{ spans: [], width: 0 }]];
     if (this.currentPage >= this.paginatedPages.length) {
       this.currentPage = Math.max(0, this.paginatedPages.length - 1);
+    }
+  }
+
+  public getRawPageText(pageIndex: number): string {
+    return this.book.pages[pageIndex] || '';
+  }
+
+  public getPageLines(pageIndex: number): LineLayout[] {
+    return this.paginatedPages[pageIndex] || [];
+  }
+
+  public getAllPages(): LineLayout[][] {
+    return this.paginatedPages;
+  }
+
+  public getAtlas(): GlyphAtlas {
+    return this.atlas;
+  }
+
+  public setShowLayoutGrid(show: boolean): void {
+    if (this.showLayoutGrid !== show) {
+      this.showLayoutGrid = show;
+      this.render();
+    }
+  }
+
+  public setHighlightedLine(lineIndex: number | null): void {
+    if (this.highlightedLineIndex !== lineIndex) {
+      this.highlightedLineIndex = lineIndex;
+      this.render();
     }
   }
 
@@ -445,6 +478,38 @@ export class BookCanvas {
           }
         }
       }
+    }
+
+    // 3.5. Draw Debug Layout Grid (if inspector grid toggle active)
+    if (this.showLayoutGrid) {
+      this.ctx.save();
+      // Draw 114px right margin guide line
+      this.ctx.strokeStyle = 'rgba(230, 40, 40, 0.45)';
+      this.ctx.lineWidth = 1;
+      this.ctx.setLineDash([2, 2]);
+      this.ctx.beginPath();
+      this.ctx.moveTo(textStartX + BOOK_TEXT_WIDTH, 26);
+      this.ctx.lineTo(textStartX + BOOK_TEXT_WIDTH, 30 + LINES_PER_PAGE * 9);
+      this.ctx.stroke();
+
+      // Draw horizontal line baselines and highlight selected line
+      for (let i = 0; i < LINES_PER_PAGE; i++) {
+        const lineY = 30 + i * 9;
+        const isHighlighted = this.highlightedLineIndex === i;
+
+        if (isHighlighted) {
+          this.ctx.fillStyle = 'rgba(255, 170, 0, 0.28)';
+          this.ctx.fillRect(textStartX - 2, lineY - 1, BOOK_TEXT_WIDTH + 4, 10);
+        }
+
+        this.ctx.strokeStyle = isHighlighted ? 'rgba(255, 170, 0, 0.8)' : 'rgba(120, 120, 120, 0.2)';
+        this.ctx.setLineDash(isHighlighted ? [] : [1, 3]);
+        this.ctx.beginPath();
+        this.ctx.moveTo(textStartX, lineY + 8);
+        this.ctx.lineTo(textStartX + BOOK_TEXT_WIDTH, lineY + 8);
+        this.ctx.stroke();
+      }
+      this.ctx.restore();
     }
 
     // 4. Draw Navigation Buttons
