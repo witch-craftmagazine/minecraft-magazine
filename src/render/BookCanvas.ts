@@ -15,6 +15,7 @@ export interface BookCanvasOptions {
   onPageChange?: (page: number, total: number) => void;
   baseAssetPath?: string;
   defaultViewMode?: ViewMode;
+  showPageIndicator?: boolean;
 }
 
 export class BookCanvas {
@@ -29,6 +30,7 @@ export class BookCanvas {
   private currentPage = 0; // 0-indexed
   private viewMode: ViewMode = 'double';
   private scale = 3; // Integer scaling factor
+  private showPageIndicator = false; // Off by default (toggleable via setShowPageIndicator)
 
   // Textures
   private bookBg: HTMLImageElement | null = null;
@@ -55,6 +57,7 @@ export class BookCanvas {
     this.atlas = options.atlas || defaultGlyphAtlas;
     this.baseAssetPath = options.baseAssetPath || './assets';
     this.onPageChange = options.onPageChange;
+    this.showPageIndicator = options.showPageIndicator ?? false;
     if (options.defaultViewMode) {
       this.viewMode = options.defaultViewMode;
     }
@@ -178,6 +181,17 @@ export class BookCanvas {
     return this.viewMode;
   }
 
+  public setShowPageIndicator(show: boolean): void {
+    if (this.showPageIndicator !== show) {
+      this.showPageIndicator = show;
+      this.render();
+    }
+  }
+
+  public getShowPageIndicator(): boolean {
+    return this.showPageIndicator;
+  }
+
   public setScale(scale: number): void {
     this.scale = Math.max(1, Math.min(6, scale));
     this.updateCanvasDimensions();
@@ -269,7 +283,8 @@ export class BookCanvas {
         pageIndex: this.currentPage,
         textStartX: 36,
         pageIndicatorRightX: 148,
-        buttonX: 116,
+        backwardButtonX: 43,
+        forwardButtonX: 116,
         isMirrored: false,
         allowForward: true,
         allowBackward: true,
@@ -287,7 +302,8 @@ export class BookCanvas {
         pageIndex: leftPageIndex,
         textStartX: 42,           // Centered on left parchment
         pageIndicatorRightX: 150,  // Near middle top margin
-        buttonX: 43,              // Outer bottom-left corner
+        backwardButtonX: 43,      // Outer bottom-left corner
+        forwardButtonX: 116,
         isMirrored: true,         // Mirror background texture!
         allowForward: false,
         allowBackward: true,
@@ -300,7 +316,8 @@ export class BookCanvas {
           pageIndex: rightPageIndex,
           textStartX: RIGHT_PAGE_X + 36,
           pageIndicatorRightX: RIGHT_PAGE_X + 148,
-          buttonX: RIGHT_PAGE_X + 116,
+          backwardButtonX: RIGHT_PAGE_X + 43,
+          forwardButtonX: RIGHT_PAGE_X + 116, // Outer bottom-right corner
           isMirrored: false,
           allowForward: true,
           allowBackward: false,
@@ -324,7 +341,8 @@ export class BookCanvas {
     pageIndex: number;
     textStartX: number;
     pageIndicatorRightX: number;
-    buttonX: number;
+    backwardButtonX: number;
+    forwardButtonX: number;
     isMirrored: boolean;
     allowForward: boolean;
     allowBackward: boolean;
@@ -336,7 +354,8 @@ export class BookCanvas {
       pageIndex,
       textStartX,
       pageIndicatorRightX,
-      buttonX,
+      backwardButtonX,
+      forwardButtonX,
       isMirrored,
       allowForward,
       allowBackward,
@@ -358,9 +377,11 @@ export class BookCanvas {
       this.ctx.drawImage(this.bookBg, 0, 0, srcW, srcH, destX, 0, 192, 192);
     }
 
-    // 2. Draw Page Indicator ("Page X of Y")
-    const pageMsg = `Page ${pageIndex + 1} of ${Math.max(1, this.paginatedPages.length)}`;
-    this.renderTextLineRightAligned(pageMsg, pageIndicatorRightX, 16, '#000000');
+    // 2. Draw Page Indicator ("Page X of Y") - toggleable, off by default
+    if (this.showPageIndicator) {
+      const pageMsg = `Page ${pageIndex + 1} of ${Math.max(1, this.paginatedPages.length)}`;
+      this.renderTextLineRightAligned(pageMsg, pageIndicatorRightX, 16, '#000000');
+    }
 
     // 3. Draw text lines (up to 14 lines)
     const pageLines = this.paginatedPages[pageIndex] || [];
@@ -427,21 +448,21 @@ export class BookCanvas {
     }
 
     // 4. Draw Navigation Buttons
-    // Backward button
+    // Backward button (bottom-left)
     const canGoBack = pageIndex > 0;
     if (allowBackward && canGoBack) {
       const bwdImg = (this.hoveredButton === 'backward') ? this.pageBackwardHoverBtn : this.pageBackwardBtn;
       if (bwdImg) {
-        this.ctx.drawImage(bwdImg, 0, 0, bwdImg.naturalWidth, bwdImg.naturalHeight, buttonX, 157, 23, 13);
+        this.ctx.drawImage(bwdImg, 0, 0, bwdImg.naturalWidth, bwdImg.naturalHeight, backwardButtonX, 157, 23, 13);
       }
     }
 
-    // Forward button
+    // Forward button (bottom-right)
     const canGoForward = pageIndex < this.paginatedPages.length - 1;
     if (allowForward && canGoForward) {
       const fwdImg = (this.hoveredButton === 'forward') ? this.pageForwardHoverBtn : this.pageForwardBtn;
       if (fwdImg) {
-        this.ctx.drawImage(fwdImg, 0, 0, fwdImg.naturalWidth, fwdImg.naturalHeight, buttonX, 157, 23, 13);
+        this.ctx.drawImage(fwdImg, 0, 0, fwdImg.naturalWidth, fwdImg.naturalHeight, forwardButtonX, 157, 23, 13);
       }
     }
   }
