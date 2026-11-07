@@ -1,6 +1,7 @@
 import { describe, it, expect, beforeEach } from 'vitest';
 import { BookCanvas } from '../src/render/BookCanvas';
 import { MinecraftBook } from '../src/engine/types';
+import { splitTextToLines } from '../src/engine/StringSplitter';
 
 describe('Accessibility Text Layer & Arrow Symmetry', () => {
   let mockContainer: any;
@@ -18,6 +19,9 @@ describe('Accessibility Text Layer & Arrow Symmetry', () => {
       stroke: () => {},
       fillRect: () => {},
       setLineDash: () => {},
+      clearRect: () => {},
+      rect: () => {},
+      clip: () => {},
       imageSmoothingEnabled: false,
     };
 
@@ -202,5 +206,90 @@ describe('Accessibility Text Layer & Arrow Symmetry', () => {
     const nextBtn = rightSection.children.find((c: any) => c.className?.includes('accessible-next-btn'));
     expect(nextBtn).toBeDefined();
     expect(nextBtn.getAttribute('aria-label')).toBe('Turn forward to page 3');
+  });
+
+  it('resets formatting styles across explicit newlines without leaking bold or color', () => {
+    // In Minecraft Java Edition, a newline starts unformatted unless explicitly styled.
+    const rawMultiLine = '§c§lBold Red Header\nSecond line';
+    const lines = splitTextToLines(rawMultiLine);
+
+    expect(lines).toHaveLength(2);
+    // Line 1 is bold and red
+    expect(lines[0].spans[0].bold).toBe(true);
+    expect(lines[0].spans[0].color).toBe('#FF5555');
+
+    // Line 2 must NOT inherit bold or red across the newline
+    expect(lines[1].spans[0].bold).toBe(false);
+    expect(lines[1].spans[0].color).toBe('#000000');
+  });
+
+  it('calls clearRect on render and clears highlighted line on page turn', () => {
+    let clearRectCalled = false;
+    const trackingMockCtx = {
+      save: () => {},
+      restore: () => {},
+      scale: () => {},
+      translate: () => {},
+      drawImage: () => {},
+      beginPath: () => {},
+      moveTo: () => {},
+      lineTo: () => {},
+      stroke: () => {},
+      fillRect: () => {},
+      setLineDash: () => {},
+      clearRect: () => { clearRectCalled = true; },
+      rect: () => {},
+      clip: () => {},
+      fillText: () => {},
+      imageSmoothingEnabled: false,
+    };
+
+    const makeEl = (tag: string) => {
+      const el: any = {
+        tagName: tag.toUpperCase(),
+        className: '',
+        style: {},
+        children: [] as any[],
+        attributes: {} as Record<string, string>,
+        _innerHTML: '',
+        get innerHTML() { return this._innerHTML; },
+        set innerHTML(val: string) {
+          this._innerHTML = val;
+          if (val === '') this.children = [];
+        },
+        textContent: '',
+        setAttribute(k: string, v: string) { this.attributes[k] = v; },
+        getAttribute(k: string) { return this.attributes[k]; },
+        appendChild(child: any) { this.children.push(child); return child; },
+        addEventListener() {},
+        removeEventListener() {},
+        closest: () => null,
+      };
+      if (tag === 'canvas') {
+        el.getContext = () => trackingMockCtx;
+      }
+      return el;
+    };
+
+    (globalThis as any).document.createElement = makeEl;
+
+    const bookCanvas = new BookCanvas({
+      container: makeEl('div'),
+      defaultViewMode: 'single',
+    });
+    bookCanvas.setBook(sampleBook);
+    // Set a fake book background image so render executes
+    (bookCanvas as any).bookBg = {} as HTMLImageElement;
+
+    // Trigger render
+    bookCanvas.render();
+    expect(clearRectCalled).toBe(true);
+
+    // Set highlighted line then turn page -> highlight should clear
+    bookCanvas.setHighlightedLine(3);
+    expect((bookCanvas as any).highlightedLineIndex).toBe(3);
+
+    bookCanvas.nextPage();
+    expect((bookCanvas as any).highlightedLineIndex).toBeNull();
   });
 });
