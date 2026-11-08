@@ -26,6 +26,7 @@ export class AsciiAmbientManager {
   private container: HTMLElement;
   private preElement: HTMLPreElement;
   private canvasElement: HTMLCanvasElement | null = null;
+  private boundsProvider: (() => DOMRect | null) | null = null;
   private currentScene: AmbientSceneType = 'meadow';
   private defaultStandardScene: AmbientSceneType;
   private isRunning = false;
@@ -86,6 +87,10 @@ export class AsciiAmbientManager {
 
   public setCanvasElement(canvas: HTMLCanvasElement | null): void {
     this.canvasElement = canvas;
+  }
+
+  public setBoundsProvider(provider: (() => DOMRect | null) | null): void {
+    this.boundsProvider = provider;
   }
 
   public setIssue(issueId: string): void {
@@ -310,16 +315,47 @@ export class AsciiAmbientManager {
   }
 
   /**
-   * Overwrites all cells that fall within the book canvas's screen coordinates with blank spaces (' ').
+   * Overwrites all cells that fall within the visible book page's screen coordinates with blank spaces (' ').
+   * Ensures that characters never render behind or inside the open book while allowing them to come right up
+   * to the physical edge of the book page without artificial bloated margins.
    */
   public maskBookBoundary(grid: string[][]): void {
     let bookRect: DOMRect | null = null;
-    if (this.canvasElement && typeof this.canvasElement.getBoundingClientRect === 'function') {
-      bookRect = this.canvasElement.getBoundingClientRect();
-    } else if (typeof document !== 'undefined' && typeof document.querySelector === 'function') {
-      const el = document.querySelector('.canvas-wrapper canvas') as HTMLElement;
-      if (el && typeof el.getBoundingClientRect === 'function') {
-        bookRect = el.getBoundingClientRect();
+
+    if (this.boundsProvider) {
+      bookRect = this.boundsProvider();
+    }
+
+    if (!bookRect) {
+      // Fallback: Infer visible book page from canvas dimensions (excluding transparent canvas margins)
+      let cRect: DOMRect | null = null;
+      if (this.canvasElement && typeof this.canvasElement.getBoundingClientRect === 'function') {
+        cRect = this.canvasElement.getBoundingClientRect();
+      } else if (typeof document !== 'undefined' && typeof document.querySelector === 'function') {
+        const el = document.querySelector('.canvas-wrapper canvas') as HTMLElement;
+        if (el && typeof el.getBoundingClientRect === 'function') {
+          cRect = el.getBoundingClientRect();
+        }
+      }
+
+      if (cRect && cRect.width > 0 && cRect.height > 0) {
+        const isDouble = (cRect.width / cRect.height) > 1.3;
+        const baseW = isDouble ? 344 : 192;
+        const scaleX = cRect.width / baseW;
+        const scaleY = cRect.height / 192;
+        const minLocalX = isDouble ? 26 : 20;
+        const maxLocalX = isDouble ? 318 : 166;
+        bookRect = {
+          left: cRect.left + minLocalX * scaleX,
+          right: cRect.left + maxLocalX * scaleX,
+          top: cRect.top + 1 * scaleY,
+          bottom: cRect.top + 181 * scaleY,
+          width: (maxLocalX - minLocalX) * scaleX,
+          height: 180 * scaleY,
+          x: cRect.left + minLocalX * scaleX,
+          y: cRect.top + 1 * scaleY,
+          toJSON: () => ({}),
+        } as DOMRect;
       }
     }
 
@@ -327,18 +363,21 @@ export class AsciiAmbientManager {
       return;
     }
 
-    // 16px buffer margin around the book boundary to keep book edges cleanly separated
-    const padX = 16;
-    const padY = 16;
-    const minX = bookRect.left - padX;
-    const maxX = bookRect.right + padX;
-    const minY = bookRect.top - padY;
-    const maxY = bookRect.bottom + padY;
+    // Relative to the pre element's screen coordinates
+    const preRect = (this.preElement && typeof this.preElement.getBoundingClientRect === 'function')
+      ? this.preElement.getBoundingClientRect()
+      : { left: 0, top: 0 };
 
-    const minCol = Math.max(0, Math.floor(minX / this.cellDim.width));
-    const maxCol = Math.min(this.cols - 1, Math.ceil(maxX / this.cellDim.width));
-    const minRow = Math.max(0, Math.floor(minY / this.cellDim.height));
-    const maxRow = Math.min(this.rows - 1, Math.ceil(maxY / this.cellDim.height));
+    const relLeft = bookRect.left - preRect.left;
+    const relRight = bookRect.right - preRect.left;
+    const relTop = bookRect.top - preRect.top;
+    const relBottom = bookRect.bottom - preRect.top;
+
+    // Mask strictly the cells that intersect the book page boundary
+    const minCol = Math.max(0, Math.floor(relLeft / this.cellDim.width));
+    const maxCol = Math.min(this.cols - 1, Math.ceil(relRight / this.cellDim.width) - 1);
+    const minRow = Math.max(0, Math.floor(relTop / this.cellDim.height));
+    const maxRow = Math.min(this.rows - 1, Math.ceil(relBottom / this.cellDim.height) - 1);
 
     for (let r = minRow; r <= maxRow; r++) {
       if (grid[r]) {

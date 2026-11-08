@@ -60,6 +60,7 @@ export class BookViewer {
     if (ambientWrapper) {
       this.asciiAmbient = new AsciiAmbientManager(ambientWrapper);
       this.asciiAmbient.setCanvasElement(this.bookCanvas.getCanvas());
+      this.asciiAmbient.setBoundsProvider(() => this.bookCanvas.getBookPageRect());
       this.asciiAmbient.setIssue(this.currentIssueId);
       this.asciiAmbient.start();
     }
