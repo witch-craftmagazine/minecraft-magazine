@@ -80,6 +80,38 @@ describe('AsciiAmbientManager Backdrop System', () => {
     expect(frame).toContain('__'); // Ground line
   });
 
+  it('renders Halloween scene with silk spider, horned owl on branch, and jack-o-lanterns', () => {
+    manager.setIssue('issue11'); // Halloween scene
+    const frame = manager.renderFrame();
+    expect(frame).toContain('##'); // Silk spider body
+    expect(frame).toContain('═════'); // Owl branch
+    expect(frame).toContain('_/_'); // Pumpkin stem
+  });
+
+  it('renders Winter scene with multi-layer snow, wooden fence snowdrifts, and snowman', () => {
+    manager.setIssue('issue12'); // Winter scene
+    const frame = manager.renderFrame();
+    expect(frame).toContain('_[===]_'); // Snowman top hat
+    expect(frame).toContain('─'); // Fence rails
+    expect(frame).toContain('▁'); // Fence post snow caps
+  });
+
+  it('renders Static scene with CRT frame, hum bar, and corrupted lore', () => {
+    (manager as any).cols = 80;
+    (manager as any).rows = 30;
+    manager.setIssue('issue2023'); // Static scene
+    const frame = manager.renderFrame();
+    expect(frame).toContain('╭'); // CRT frame corner
+    expect(frame).toContain('╯'); // CRT frame corner
+  });
+
+  it('renders Celestial scene with moon surface and astrolabe alignment ring', () => {
+    manager.setIssue('intro'); // Celestial scene
+    const frame = manager.renderFrame();
+    expect(frame).toContain('.---.'); // Moon disc boundary
+    expect(frame).toContain('⏼'); // Astrolabe center rune
+  });
+
   it('positions top elements below the toolbar and anchors bottom elements near the bottom edge on portrait screens', () => {
     // Simulate portrait dimensions (e.g. 50 cols, 60 rows)
     (manager as any).cols = 50;
