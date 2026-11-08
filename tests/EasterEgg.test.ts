@@ -362,7 +362,7 @@ Normal page 2 text`;
 
     const placement = canvas.getBlankPageGifPlacement();
     expect(placement).not.toBeNull();
-    expect(placement?.x).toBe(199); // Centered on right parchment
+    expect(placement?.x).toBe(201); // Centered on right parchment (RIGHT_PAGE_X + 49 = 152 + 49)
     expect(placement?.y).toBe(43);
     expect(placement?.w).toBe(88);
     expect(placement?.h).toBe(100);
