@@ -97,6 +97,38 @@ export class SoundManager {
       // Audio playback failed or blocked by autoplay policy
     }
   }
+
+  /**
+   * Synthesizes a soft, magical twinkling wink chime for the Witchcraft Magazine easter egg.
+   */
+  public playWink(): void {
+    if (!this.enabled) return;
+
+    try {
+      const ctx = this.initContext();
+      if (!ctx) return;
+
+      const now = ctx.currentTime;
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+
+      osc.type = 'sine';
+      osc.frequency.setValueAtTime(880, now); // A5
+      osc.frequency.exponentialRampToValueAtTime(1318.51, now + 0.12); // E6
+
+      gain.gain.setValueAtTime(0.001, now);
+      gain.gain.linearRampToValueAtTime(0.15, now + 0.03);
+      gain.gain.exponentialRampToValueAtTime(0.001, now + 0.15);
+
+      osc.connect(gain);
+      gain.connect(ctx.destination);
+
+      osc.start(now);
+      osc.stop(now + 0.15);
+    } catch {
+      // Audio playback failed or blocked by autoplay policy
+    }
+  }
 }
 
 export const soundManager = new SoundManager();
