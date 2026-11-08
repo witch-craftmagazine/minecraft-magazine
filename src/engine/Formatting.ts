@@ -17,6 +17,16 @@ export const MINECRAFT_COLORS: Record<string, string> = {
   'd': '#FF55FF', // Light Purple
   'e': '#FFFF55', // Yellow
   'f': '#FFFFFF', // White
+  // Bedrock Edition & Custom Material Colors
+  'g': '#DDD605', // Minecoin Gold
+  'h': '#E3D4D1', // Quartz
+  'i': '#CECACA', // Iron
+  'j': '#443A3B', // Netherite
+  'p': '#DEB12D', // Gold Material
+  'q': '#47A036', // Emerald
+  's': '#2CBAA8', // Diamond
+  't': '#21497B', // Lapis
+  'u': '#9A5CC6', // Amethyst
 };
 
 export const COLOR_NAMES: Record<string, string> = {
@@ -36,6 +46,15 @@ export const COLOR_NAMES: Record<string, string> = {
   'd': 'Light Purple',
   'e': 'Yellow',
   'f': 'White',
+  'g': 'Minecoin Gold',
+  'h': 'Quartz',
+  'i': 'Iron',
+  'j': 'Netherite',
+  'p': 'Gold',
+  'q': 'Emerald',
+  's': 'Diamond',
+  't': 'Lapis',
+  'u': 'Amethyst',
 };
 
 export const DEFAULT_BOOK_TEXT_COLOR = '#000000';
@@ -75,8 +94,8 @@ export function normalizeFormattingCodes(input: string): string {
     return match.replace(/&/g, '§');
   });
 
-  // Convert &0-&f, &l-&r, &k to §
-  text = text.replace(/&([0-9a-fA-Fk-oK-OrR])/g, '§$1');
+  // Convert &0-&f, &g-&j, &p-&u, &k-&o, &r to §
+  text = text.replace(/&([0-9a-fA-Fk-oK-OrRg-jG-Jp-uP-U])/g, '§$1');
 
   return text;
 }

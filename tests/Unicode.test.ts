@@ -12,6 +12,43 @@ describe('Unicode & Symbol Chat Support', () => {
     }
   });
 
+  it('provides exact accurate advances for Minecraft / Symbol Chat box drawing and magazine symbols', () => {
+    // Box drawing and borders (9px advance for 8px cell + 1px spacing)
+    expect(defaultGlyphAtlas.getAdvance('╔')).toBe(9);
+    expect(defaultGlyphAtlas.getAdvance('═')).toBe(9);
+    expect(defaultGlyphAtlas.getAdvance('╗')).toBe(9);
+    expect(defaultGlyphAtlas.getAdvance('║')).toBe(9);
+    expect(defaultGlyphAtlas.getAdvance('─')).toBe(9);
+    expect(defaultGlyphAtlas.getAdvance('━')).toBe(9);
+    expect(defaultGlyphAtlas.getAdvance('│')).toBe(6);
+    expect(defaultGlyphAtlas.getAdvance('╚')).toBe(8);
+    expect(defaultGlyphAtlas.getAdvance('╝')).toBe(8);
+
+    // Blocks and shades
+    expect(defaultGlyphAtlas.getAdvance('█')).toBe(9);
+    expect(defaultGlyphAtlas.getAdvance('▓')).toBe(9);
+    expect(defaultGlyphAtlas.getAdvance('▒')).toBe(9);
+    expect(defaultGlyphAtlas.getAdvance('░')).toBe(8);
+
+    // Magazine decorative symbols
+    expect(defaultGlyphAtlas.getAdvance('™')).toBe(9);
+    expect(defaultGlyphAtlas.getAdvance('☠')).toBe(8);
+    expect(defaultGlyphAtlas.getAdvance('★')).toBe(8);
+    expect(defaultGlyphAtlas.getAdvance('⛏')).toBe(9);
+
+    // Media player bar line: exactly 114px!
+    const playerBar = ' 0:00 ━❍───── 9:05';
+    const lines = splitTextToLines(playerBar, BOOK_TEXT_WIDTH, defaultGlyphAtlas);
+    expect(lines).toHaveLength(1);
+    expect(lines[0].width).toBe(114);
+
+    // Title skull line: exactly 113px!
+    const skullLine = '☠☠☠☠☠☠ ™ ☠☠☠☠☠☠';
+    const skullLines = splitTextToLines(skullLine, BOOK_TEXT_WIDTH, defaultGlyphAtlas);
+    expect(skullLines).toHaveLength(1);
+    expect(skullLines[0].width).toBe(113);
+  });
+
   it('measures CJK multilingual characters properly', () => {
     const cjk = ['日', '本', '語', '你', '好', '한', '글'];
     for (const char of cjk) {

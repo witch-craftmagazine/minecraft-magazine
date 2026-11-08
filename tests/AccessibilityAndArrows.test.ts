@@ -301,19 +301,23 @@ describe('Accessibility Text Layer & Arrow Symmetry', () => {
     expect(stageEl.classList.contains('text-selection-enabled')).toBe(false);
   });
 
-  it('resets formatting styles across explicit newlines without leaking bold or color', () => {
-    // In Minecraft Java Edition, a newline starts unformatted unless explicitly styled.
-    const rawMultiLine = '§c§lBold Red Header\nSecond line';
+  it('persists formatting styles across explicit newlines on a page until reset with §r', () => {
+    // In Minecraft written books, each page is a single text component; styles carry over across \n
+    const rawMultiLine = '§c§lBold Red Header\nSecond line\n§rReset Line';
     const lines = splitTextToLines(rawMultiLine);
 
-    expect(lines).toHaveLength(2);
+    expect(lines).toHaveLength(3);
     // Line 1 is bold and red
     expect(lines[0].spans[0].bold).toBe(true);
     expect(lines[0].spans[0].color).toBe('#FF5555');
 
-    // Line 2 must NOT inherit bold or red across the newline
-    expect(lines[1].spans[0].bold).toBe(false);
-    expect(lines[1].spans[0].color).toBe('#000000');
+    // Line 2 inherits bold and red across the newline
+    expect(lines[1].spans[0].bold).toBe(true);
+    expect(lines[1].spans[0].color).toBe('#FF5555');
+
+    // Line 3 resets to default formatting after §r
+    expect(lines[2].spans[0].bold).toBe(false);
+    expect(lines[2].spans[0].color).toBe('#000000');
   });
 
   it('calls clearRect on render and clears highlighted line on page turn', () => {

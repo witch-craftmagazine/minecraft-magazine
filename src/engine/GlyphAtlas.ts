@@ -9,6 +9,7 @@ export interface GlyphMapEntry {
   rowsInSheet: number;
   cellWidth: number;
   cellHeight: number;
+  yOffset: number;
   rawWidth: number;
   advance: number;
 }
@@ -36,21 +37,23 @@ export const MINECRAFT_SYMBOL_ADVANCES: Record<string, number> = {
   '♈': 7, '♉': 7, '♊': 7, '♋': 7, '♌': 7, '♍': 7,
   '♎': 7, '♏': 7, '♐': 7, '♑': 7, '♒': 7, '♓': 7,
   // Sparkles, stars, dots & decorative operators
-  '✧': 5, '⋄': 4, '⋆': 4, '⋅': 3, '✦': 5, '★': 7, '☆': 7,
+  '✧': 5, '⋄': 4, '⋆': 4, '⋅': 3, '✦': 5, '★': 8, '☆': 8,
   '✯': 7, '✰': 7, '✩': 7, '✵': 7, '✶': 7, '✹': 7, '✷': 7,
   '•': 3, '·': 3, '…': 6, '“': 4, '”': 4, '‘': 2, '’': 2,
-  '☠': 7, '☕': 7, '✐': 7, '⚘': 6, '⛏': 7, '⚑': 7, '☾': 7, '☽': 7,
-  '━': 5, '─': 5, '❍': 7, '⊲': 5, '⊳': 5, 'Ⅱ': 5, '↻': 7, '↺': 7,
-  '╭': 5, '╮': 5, '╯': 5, '╰': 5, '┈': 5, '➤': 6, '┊': 4,
-  '░': 5, '▒': 5, '▓': 5, '█': 6,
-  '╔': 6, '╗': 6, '╚': 6, '╝': 6, '═': 6, '║': 6, '┌': 6, '┐': 6, '└': 6, '┘': 6,
-  '☹': 7, '☺': 7, '☻': 7, '♡': 7, '♥': 7, '♦': 7, '♣': 7, '♠': 7,
+  '☠': 8, '☕': 8, '✐': 8, '⚘': 8, '⛏': 9, '⚑': 8, '☾': 9, '☽': 9,
+  '━': 9, '─': 9, '❍': 8, '⊲': 6, '⊳': 6, 'Ⅱ': 6, '↻': 8, '↺': 8,
+  '╭': 9, '╮': 9, '╯': 8, '╰': 8, '┈': 9, '➤': 7, '┊': 6,
+  '░': 8, '▒': 9, '▓': 9, '█': 9,
+  '╔': 9, '╗': 9, '╚': 8, '╝': 8, '═': 9, '║': 9, '┌': 9, '┐': 9, '└': 8, '┘': 8,
+  '▀': 9, '▄': 9, '▌': 6, '▐': 9, '│': 6,
+  '▂': 9, '▃': 9, '▅': 9, '▆': 9, '▇': 9,
+  '☹': 8, '☺': 8, '☻': 8, '♡': 9, '♥': 9, '♦': 8, '♣': 8, '♠': 8,
   // Superscript & small-caps letters (Unifont, typically 3-4px)
   'ᵀ': 4, 'ʰ': 4, 'ᵉ': 4, 'ᴰ': 4, 'ᵛ': 4, 'ⁱ': 2, 'ˡ': 2, 'ᴵ': 2, 'ˢ': 3, 'ⁿ': 4,
   'ᶠ': 4, 'ᵒ': 4, 'ʳ': 3, 'ᵗ': 3, 'ᵘ': 4, 'ᵏ': 4, 'ʷ': 5, 'ᵃ': 4, 'ᵇ': 4, 'ᶜ': 4,
   'ᵈ': 4, 'ᵍ': 4, 'ʲ': 3, 'ᵐ': 5, 'ᵖ': 4, 'ʸ': 4, '⁻': 3,
   // In-game ASCII art & player symbols
-  '™': 6, '⏼': 7, '⯪': 5,
+  '™': 9, '⏼': 8, '⯪': 8,
 };
 
 export class GlyphAtlas {
@@ -114,25 +117,48 @@ export class GlyphAtlas {
   }
 
   /**
-   * Measures the pixel width for any arbitrary Unicode character (e.g. from Symbol Chat).
+   * Measures the pixel width for any arbitrary Unicode character (matching Symbol Chat and Unifont).
    */
   private measureUnicodeAdvance(char: string): number {
     if (char === ' ') return 4;
-    this.initMeasureCanvas();
+    const code = char.codePointAt(0) || 0;
 
-    if (!this.measureCtx) {
-      // Default heuristic: CJK / wide emoji is 9px, standard symbol is 6-7px
-      const code = char.codePointAt(0) || 0;
-      if (code >= 0x2E80 && code <= 0x9FFF) return 9; // CJK
-      if (code >= 0x1F300) return 9; // Emojis
-      return 6;
+    // Fast lookups for common ranges based on Unifont / Symbol Chat:
+    // CJK, Fullwidth forms, Emojis, Enclosed Alphanumerics, Mathematical Alphanumerics
+    if (
+      (code >= 0x2E80 && code <= 0x9FFF) ||   // CJK radicals & ideographs
+      (code >= 0xAC00 && code <= 0xD7AF) ||   // Hangul syllables
+      (code >= 0xF900 && code <= 0xFAFF) ||   // CJK compatibility
+      (code >= 0xFE30 && code <= 0xFE4F) ||   // CJK compatibility forms
+      (code >= 0xFF01 && code <= 0xFF60) ||   // Fullwidth ASCII variants (！..～)
+      (code >= 0xFFE0 && code <= 0xFFEE) ||   // Fullwidth currency & symbols
+      (code >= 0x1F300 && code <= 0x1FAFF)    // Emojis & Pictographs
+    ) {
+      return 9; // Fullwidth glyph (8px wide + 1px spacing)
     }
 
-    this.measureCtx.font = '8px "Unifont", "Minecraftia", "Segoe UI Symbol", monospace, sans-serif';
-    const metrics = this.measureCtx.measureText(char);
-    const measuredWidth = Math.ceil(metrics.width);
+    // Mathematical Alphanumeric Symbols (𝖂, 𝖆, 𝒜, etc.)
+    if (code >= 0x1D400 && code <= 0x1D7FF) {
+      this.initMeasureCanvas();
+      if (this.measureCtx) {
+        this.measureCtx.font = '16px "Unifont", monospace';
+        const m = this.measureCtx.measureText(char);
+        const w = Math.ceil(m.width / 2);
+        return Math.max(5, Math.min(9, w + 1));
+      }
+      return 8;
+    }
 
-    // In Minecraft font, glyph advances are typically clamped to 4-9px for book fit
+    this.initMeasureCanvas();
+    if (!this.measureCtx) {
+      return 7;
+    }
+
+    this.measureCtx.font = '16px "Unifont", monospace';
+    const metrics = this.measureCtx.measureText(char);
+    const measuredWidth = Math.ceil(metrics.width / 2);
+
+    // In Minecraft font, glyph advances are clamped to 3-9px
     const advance = Math.max(3, Math.min(9, measuredWidth + 1));
     return advance;
   }
@@ -156,28 +182,7 @@ export class GlyphAtlas {
       if (accentedImg) this.sheets['accented'] = accentedImg;
       if (nonlatinImg) this.sheets['nonlatin'] = nonlatinImg;
 
-      // Map ASCII 16x16 grid
-      for (let code = 0; code < 256; code++) {
-        const char = String.fromCharCode(code);
-        const col = code % 16;
-        const row = Math.floor(code / 16);
-        const advance = this.getAdvance(char, false);
-        const rawWidth = char === ' ' ? 4 : Math.max(1, advance - 1);
-
-        this.glyphMap.set(char, {
-          sheet: 'ascii',
-          col,
-          row,
-          colsInSheet: 16,
-          rowsInSheet: 16,
-          cellWidth: 8,
-          cellHeight: 8,
-          rawWidth,
-          advance,
-        });
-      }
-
-      // Map providers from default.json if present
+      // Map providers from default.json (ascii, accented, nonlatin_european)
       if (defaultJson && defaultJson.providers) {
         for (const provider of defaultJson.providers) {
           if (provider.type === 'bitmap' && provider.chars && provider.file) {
@@ -188,6 +193,9 @@ export class GlyphAtlas {
             const rows = provider.chars.length;
             const cols = provider.chars[0].length;
             const img = this.sheets[sheetName];
+            const cellHeight = provider.height ?? 8;
+            const ascent = provider.ascent ?? 7;
+            const yOffset = 7 - ascent;
             let imgData: ImageData | null = null;
 
             if (img && typeof document !== 'undefined') {
@@ -219,6 +227,7 @@ export class GlyphAtlas {
                     const imgW = img.naturalWidth || img.width;
                     const cellW = Math.floor(imgW / cols);
                     const cellH = Math.floor((img.naturalHeight || img.height) / rows);
+                    const scaleRatio = 8 / cellW;
                     for (let w = cellW - 1; w >= 0; w--) {
                       let hasPixel = false;
                       const xPixel = c * cellW + w;
@@ -231,7 +240,7 @@ export class GlyphAtlas {
                         }
                       }
                       if (hasPixel) {
-                        actualWidth = w + 1;
+                        actualWidth = Math.round((w + 1) * scaleRatio);
                         break;
                       }
                     }
@@ -249,13 +258,36 @@ export class GlyphAtlas {
                   colsInSheet: cols,
                   rowsInSheet: rows,
                   cellWidth: 8,
-                  cellHeight: 8,
+                  cellHeight,
+                  yOffset,
                   rawWidth,
                   advance,
                 });
               }
             }
           }
+        }
+      } else {
+        // Fallback ASCII 0..255 if default.json is unavailable
+        for (let code = 0; code < 256; code++) {
+          const char = String.fromCharCode(code);
+          const col = code % 16;
+          const row = Math.floor(code / 16);
+          const advance = this.getAdvance(char, false);
+          const rawWidth = char === ' ' ? 4 : Math.max(1, advance - 1);
+
+          this.glyphMap.set(char, {
+            sheet: 'ascii',
+            col,
+            row,
+            colsInSheet: 16,
+            rowsInSheet: 16,
+            cellWidth: 8,
+            cellHeight: 8,
+            yOffset: 0,
+            rawWidth,
+            advance,
+          });
         }
       }
 
@@ -311,6 +343,7 @@ export class GlyphAtlas {
 
     await Promise.all(promises);
     this.tintedSheets.clear();
+    this.fallbackCache.clear();
   }
 
   public async loadFromFontDirectory(fontDir: string): Promise<void> {
@@ -530,7 +563,7 @@ export class GlyphAtlas {
           sHeight: cellH,
           dWidth: entry.cellWidth ?? 8,
           dHeight: entry.cellHeight ?? 8,
-          yOffset: (entry as any).yOffset ?? 0,
+          yOffset: entry.yOffset ?? 0,
           advance: isBold ? entry.advance + 1 : entry.advance,
           ascent: 7,
         };
@@ -542,7 +575,8 @@ export class GlyphAtlas {
   }
 
   /**
-   * Generates a pixelated Minecraft-style fallback glyph for extended Unicode characters.
+   * Generates a crisp, pixelated Minecraft-style fallback glyph for extended Unicode characters.
+   * Renders at 16px (Unifont native grid) and binarizes pixel alpha to eliminate anti-aliasing blur.
    */
   private getOrCreateFallbackGlyph(char: string, colorHex: string, isBold: boolean): GlyphDrawInfo {
     const cacheKey = `${char}_${colorHex}_${isBold}`;
@@ -551,28 +585,61 @@ export class GlyphAtlas {
     }
 
     const advance = this.getAdvance(char, isBold);
-    const w = Math.max(8, advance + 2);
-    const h = 9;
+    const cellW = 16;
+    const cellH = 16;
 
     const canvas = document.createElement('canvas');
-    canvas.width = w;
-    canvas.height = h;
-    const ctx = canvas.getContext('2d');
+    canvas.width = cellW;
+    canvas.height = cellH;
+    const ctx = canvas.getContext('2d', { willReadFrequently: true });
 
     if (ctx) {
       ctx.imageSmoothingEnabled = false;
       ctx.fillStyle = colorHex;
-      ctx.font = `${isBold ? 'bold ' : ''}8px "Unifont", "Minecraftia", "Segoe UI Symbol", monospace, sans-serif`;
-      ctx.textBaseline = 'middle';
-      ctx.fillText(char, 0, Math.floor(h / 2));
+      ctx.font = `${isBold ? 'bold ' : ''}16px "Unifont", "Minecraftia", monospace, sans-serif`;
+      ctx.textBaseline = 'alphabetic';
+      ctx.fillText(char, 0, 13);
+
+      // Eliminate subpixel anti-aliasing blur and crooked lines by thresholding alpha
+      try {
+        const imgData = ctx.getImageData(0, 0, cellW, cellH);
+        const data = imgData.data;
+
+        // Parse colorHex into RGB
+        let r = 0;
+        let g = 0;
+        let b = 0;
+        if (colorHex.startsWith('#') && colorHex.length >= 7) {
+          r = parseInt(colorHex.slice(1, 3), 16) || 0;
+          g = parseInt(colorHex.slice(3, 5), 16) || 0;
+          b = parseInt(colorHex.slice(5, 7), 16) || 0;
+        }
+
+        for (let i = 0; i < data.length; i += 4) {
+          const alpha = data[i + 3];
+          if (alpha >= 70) {
+            data[i] = r;
+            data[i + 1] = g;
+            data[i + 2] = b;
+            data[i + 3] = 255;
+          } else {
+            data[i + 3] = 0;
+          }
+        }
+        ctx.putImageData(imgData, 0, 0);
+      } catch {
+        // Fallback for mock environments without getImageData
+      }
     }
 
     const drawInfo: GlyphDrawInfo = {
       image: canvas as unknown as HTMLImageElement,
       sx: 0,
       sy: 0,
-      sWidth: w,
-      sHeight: h,
+      sWidth: cellW,
+      sHeight: cellH,
+      dWidth: 8,
+      dHeight: 8,
       advance,
       ascent: 7,
     };
