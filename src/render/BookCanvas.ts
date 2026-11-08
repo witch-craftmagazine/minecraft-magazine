@@ -427,6 +427,56 @@ export class BookCanvas {
     return this.canvas;
   }
 
+  /**
+   * Returns the exact bounding rectangle in client coordinates of the visible book page
+   * (excluding transparent canvas margins).
+   */
+  public getBookPageRect(): DOMRect | null {
+    if (!this.canvas) return null;
+    const canvasRect = this.canvas.getBoundingClientRect();
+    if (!canvasRect || canvasRect.width === 0 || canvasRect.height === 0) return null;
+
+    const baseW = this.viewMode === 'double' ? TWO_PAGE_WIDTH : 192;
+    const baseH = 192;
+    const scaleX = canvasRect.width / baseW;
+    const scaleY = canvasRect.height / baseH;
+
+    let minLocalX: number;
+    let maxLocalX: number;
+    // In Minecraft GUI book.png (192x192 region):
+    // Parchment texture starts at y = 1 and ends at y = 181
+    const minLocalY = 1;
+    const maxLocalY = 181;
+
+    if (this.viewMode === 'double') {
+      // Mirrored left page spans x: 26 to 172.
+      // Normal right page spans x: 152 + 20 = 172 to 152 + 166 = 318.
+      minLocalX = 26;
+      maxLocalX = 318;
+    } else {
+      // Single page spans x: 20 to 166.
+      minLocalX = 20;
+      maxLocalX = 166;
+    }
+
+    const left = canvasRect.left + minLocalX * scaleX;
+    const right = canvasRect.left + maxLocalX * scaleX;
+    const top = canvasRect.top + minLocalY * scaleY;
+    const bottom = canvasRect.top + maxLocalY * scaleY;
+
+    return {
+      left,
+      right,
+      top,
+      bottom,
+      width: right - left,
+      height: bottom - top,
+      x: left,
+      y: top,
+      toJSON: () => ({ left, right, top, bottom, width: right - left, height: bottom - top }),
+    } as DOMRect;
+  }
+
   public setShowPageIndicator(show: boolean): void {
     if (this.showPageIndicator !== show) {
       this.showPageIndicator = show;

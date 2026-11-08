@@ -1,5 +1,6 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { AsciiAmbientManager } from '../src/ambient/AsciiAmbientManager';
+import { BookCanvas } from '../src/render/BookCanvas';
 
 describe('AsciiAmbientManager Backdrop System', () => {
   let mockContainer: any;
@@ -45,22 +46,18 @@ describe('AsciiAmbientManager Backdrop System', () => {
   });
 
   it('enforces that characters strictly stop at the book boundary (no characters under book)', () => {
-    // Create a mock book canvas in the center of the screen
-    const mockCanvas = {
-      getBoundingClientRect: () => ({
-        left: 100,
-        top: 50,
-        right: 300,
-        bottom: 200,
-        width: 200,
-        height: 150,
-        x: 100,
-        y: 50,
-        toJSON: () => {},
-      }),
-    };
-
-    manager.setCanvasElement(mockCanvas as unknown as HTMLCanvasElement);
+    // Provide a mock bounds provider representing a 200x150 book page at (100, 50)
+    manager.setBoundsProvider(() => ({
+      left: 100,
+      top: 50,
+      right: 300,
+      bottom: 200,
+      width: 200,
+      height: 150,
+      x: 100,
+      y: 50,
+      toJSON: () => {},
+    } as DOMRect));
 
     // Populate a test grid with characters everywhere
     const rows = 30;
@@ -70,12 +67,12 @@ describe('AsciiAmbientManager Backdrop System', () => {
     // Apply the boundary mask
     manager.maskBookBoundary(grid);
 
-    // Calculate expected masked cell boundaries with 16px buffer
+    // Calculate expected masked cell boundaries:
     // cellDim width ~ 7.2px, height ~ 13.5px
-    const minCol = Math.floor((100 - 16) / 7.2);
-    const maxCol = Math.ceil((300 + 16) / 7.2);
-    const minRow = Math.floor((50 - 16) / 13.5);
-    const maxRow = Math.ceil((200 + 16) / 13.5);
+    const minCol = Math.floor(100 / 7.2);
+    const maxCol = Math.ceil(300 / 7.2) - 1;
+    const minRow = Math.floor(50 / 13.5);
+    const maxRow = Math.ceil(200 / 13.5) - 1;
 
     // Verify inside book rect is 100% blank
     for (let r = minRow; r <= maxRow; r++) {
@@ -118,5 +115,51 @@ describe('AsciiAmbientManager Backdrop System', () => {
       expect(frame).not.toContain('NaN');
       expect(frame.length).toBeGreaterThan(50);
     }
+  });
+
+  it('correctly calculates the visible book page rectangle excluding transparent canvas margins', () => {
+    const container = document.createElement('div');
+    const bookCanvas = new BookCanvas({ container });
+    const canvas = bookCanvas.getCanvas();
+    canvas.getBoundingClientRect = () => ({
+      left: 100,
+      top: 50,
+      right: 1132,
+      bottom: 626,
+      width: 1032, // 344 * 3 (double mode)
+      height: 576, // 192 * 3
+      x: 100,
+      y: 50,
+      toJSON: () => {},
+    } as DOMRect);
+
+    // Double page mode: [26, 318] * 3 = [78, 954] offset
+    const doubleRect = bookCanvas.getBookPageRect();
+    expect(doubleRect).not.toBeNull();
+    expect(doubleRect!.left).toBe(100 + 26 * 3); // 178
+    expect(doubleRect!.right).toBe(100 + 318 * 3); // 1054
+    expect(doubleRect!.top).toBe(50 + 1 * 3); // 53
+    expect(doubleRect!.bottom).toBe(50 + 181 * 3); // 593
+
+    // Single page mode: [20, 166] * 3 = [60, 498] offset
+    bookCanvas.setViewMode('single');
+    canvas.getBoundingClientRect = () => ({
+      left: 100,
+      top: 50,
+      right: 676,
+      bottom: 626,
+      width: 576, // 192 * 3 (single mode)
+      height: 576, // 192 * 3
+      x: 100,
+      y: 50,
+      toJSON: () => {},
+    } as DOMRect);
+
+    const singleRect = bookCanvas.getBookPageRect();
+    expect(singleRect).not.toBeNull();
+    expect(singleRect!.left).toBe(100 + 20 * 3); // 160
+    expect(singleRect!.right).toBe(100 + 166 * 3); // 598
+    expect(singleRect!.top).toBe(50 + 1 * 3); // 53
+    expect(singleRect!.bottom).toBe(50 + 181 * 3); // 593
   });
 });
