@@ -5,6 +5,7 @@ import { ResourcePackManager } from '../engine/ResourcePackManager';
 import { WITCHCRAFT_MAGAZINE_ISSUES } from '../samples/sampleBooks';
 import { parseStendhalBook } from '../io/BookParser';
 import { PageInspectorModal } from './PageInspectorModal';
+import { parseBookUrl, buildBookHash, buildShareableUrl } from './urlNavigation';
 
 const isDev = !(import.meta as any).env?.PROD || (typeof window !== 'undefined' && (new URLSearchParams(window.location.search).has('dev') || new URLSearchParams(window.location.search).has('inspector')));
 
@@ -17,6 +18,8 @@ export class BookViewer {
 
   private currentBook: MinecraftBook = { title: '', author: '', pages: [''] };
   private currentIssueId = 'intro';
+  private initialPage: number | null = null;
+  private toastTimeout: any = null;
 
   constructor(container: HTMLElement) {
     this.container = container;
@@ -26,8 +29,8 @@ export class BookViewer {
     this.packManager = new ResourcePackManager('./assets');
     this.buildLayout();
 
-    // Check URL hash for direct issue deep-link (e.g., #issue=issue1 or #issue1)
-    this.resolveInitialIssueFromHash();
+    // Check URL query or hash for issue and page deep-link (e.g. #issue=issue1&page=13)
+    this.resolveInitialStateFromUrl();
 
     // Automatically use single page on narrow screens (< 680px) and two pages on wider screens
     const isNarrow = typeof window !== 'undefined' && window.innerWidth < 680;
@@ -53,7 +56,7 @@ export class BookViewer {
     // 1. Initialize canvas textures & load initial magazine issue concurrently
     await Promise.all([
       this.bookCanvas.init(),
-      this.loadIssue(this.currentIssueId),
+      this.loadIssue(this.currentIssueId, this.initialPage ?? 1),
     ]);
 
     // 2. Load custom Craftadia server pack (emojis & logos + Lithos HD font & book)
@@ -65,13 +68,15 @@ export class BookViewer {
     }
   }
 
-  private resolveInitialIssueFromHash(): void {
-    const hash = window.location.hash;
-    const match = hash.match(/#issue=([a-zA-Z0-9_-]+)/);
-    if (match && WITCHCRAFT_MAGAZINE_ISSUES.some(m => m.id === match[1])) {
-      this.currentIssueId = match[1];
-    } else if (hash.startsWith('#') && WITCHCRAFT_MAGAZINE_ISSUES.some(m => m.id === hash.slice(1))) {
-      this.currentIssueId = hash.slice(1);
+  private resolveInitialStateFromUrl(): void {
+    if (typeof window === 'undefined') return;
+    const validIds = WITCHCRAFT_MAGAZINE_ISSUES.map(m => m.id);
+    const parsed = parseBookUrl(window.location.href, validIds);
+    if (parsed.issueId) {
+      this.currentIssueId = parsed.issueId;
+    }
+    if (parsed.page !== null) {
+      this.initialPage = parsed.page;
     }
   }
 
@@ -112,6 +117,7 @@ export class BookViewer {
 
           <div class="magazine-meta">
             <span class="magazine-page-info" id="magazine-page-info">1-2 / 16</span>
+            <button class="nav-icon-btn" id="btn-share-page" title="Share link to this page (copies URL)" aria-label="Share link to this page">🔗</button>
             <button class="nav-icon-btn" id="btn-sound-toggle" title="Toggle Page Flip Sound">🔊</button>
             ${isDev ? `
               <button class="nav-icon-btn" id="btn-text-select-toggle" title="Enable Text Selection (T)">📝</button>
@@ -120,12 +126,15 @@ export class BookViewer {
           </div>
         </div>
       </header>
+
+      <!-- Share toast notification -->
+      <div class="share-toast" id="share-toast" role="status" aria-live="polite"></div>
     `;
 
     this.canvasWrapper = this.container.querySelector('#canvas-wrapper') as HTMLElement;
   }
 
-  private async loadIssue(issueId: string): Promise<void> {
+  private async loadIssue(issueId: string, targetPage?: number): Promise<void> {
     const issue = WITCHCRAFT_MAGAZINE_ISSUES.find(m => m.id === issueId);
     if (!issue) return;
 
@@ -150,7 +159,18 @@ export class BookViewer {
       if (book) {
         this.currentBook = book;
         this.bookCanvas.setBook(this.currentBook);
-        this.bookCanvas.setPage(0);
+
+        const pageToOpen = targetPage ?? (this.initialPage ?? 1);
+        this.initialPage = null; // consume initial page
+        const total = this.bookCanvas.getTotalPages();
+        let targetIndex = Math.max(0, Math.min(Math.max(0, total - 1), pageToOpen - 1));
+
+        // Align spread start in double page mode
+        if (this.bookCanvas.getViewMode() === 'double' && targetIndex % 2 === 1) {
+          targetIndex -= 1;
+        }
+
+        this.bookCanvas.setPage(targetIndex);
         document.title = `${issue.title} · witchcraft...magazine`;
         this.pageInspector?.setIssueId(issueId);
       }
@@ -164,6 +184,7 @@ export class BookViewer {
     const nextIssueBtn = this.container.querySelector('#btn-next-issue') as HTMLButtonElement;
     const scrollContainer = this.container.querySelector('#issue-scroll-container') as HTMLElement;
     const chips = this.container.querySelectorAll('.issue-chip') as NodeListOf<HTMLButtonElement>;
+    const shareBtn = this.container.querySelector('#btn-share-page') as HTMLButtonElement;
     const soundBtn = this.container.querySelector('#btn-sound-toggle') as HTMLButtonElement;
     const textSelectBtn = this.container.querySelector('#btn-text-select-toggle') as HTMLButtonElement;
     const inspectBtn = this.container.querySelector('#btn-inspector-toggle') as HTMLButtonElement;
@@ -223,6 +244,9 @@ export class BookViewer {
     prevIssueBtn?.addEventListener('click', () => this.stepIssue(-1));
     nextIssueBtn?.addEventListener('click', () => this.stepIssue(1));
 
+    // Share page button
+    shareBtn?.addEventListener('click', () => this.handleShare());
+
     // Sound toggle button
     soundBtn?.addEventListener('click', () => {
       const active = soundManager.toggle();
@@ -276,21 +300,37 @@ export class BookViewer {
       }
     });
 
-    // Hash change listener for browser navigation
+    // Hash change listener for browser navigation (back/forward or manual hash entry)
     window.addEventListener('hashchange', () => {
-      const hash = window.location.hash;
-      const match = hash.match(/#issue=([a-zA-Z0-9_-]+)/);
-      const targetId = match ? match[1] : (hash.startsWith('#') ? hash.slice(1) : '');
-      if (targetId && targetId !== this.currentIssueId && WITCHCRAFT_MAGAZINE_ISSUES.some(m => m.id === targetId)) {
-        this.loadIssue(targetId);
+      const validIds = WITCHCRAFT_MAGAZINE_ISSUES.map(m => m.id);
+      const parsed = parseBookUrl(window.location.hash, validIds);
+      if (parsed.issueId && parsed.issueId !== this.currentIssueId) {
+        this.loadIssue(parsed.issueId, parsed.page ?? 1);
+      } else if (parsed.page !== null) {
+        const total = this.bookCanvas.getTotalPages();
+        let targetIndex = Math.max(0, Math.min(Math.max(0, total - 1), parsed.page - 1));
+        if (this.bookCanvas.getViewMode() === 'double' && targetIndex % 2 === 1) {
+          targetIndex -= 1;
+        }
+        if (this.bookCanvas.getCurrentPage() !== targetIndex) {
+          this.bookCanvas.setPage(targetIndex);
+        }
       }
     });
   }
 
-  private switchIssue(issueId: string): void {
-    if (issueId === this.currentIssueId) return;
-    window.location.hash = `#issue=${issueId}`;
-    this.loadIssue(issueId);
+  private switchIssue(issueId: string, page: number = 1): void {
+    if (issueId === this.currentIssueId) {
+      const total = this.bookCanvas.getTotalPages();
+      let targetIndex = Math.max(0, Math.min(Math.max(0, total - 1), page - 1));
+      if (this.bookCanvas.getViewMode() === 'double' && targetIndex % 2 === 1) {
+        targetIndex -= 1;
+      }
+      this.bookCanvas.setPage(targetIndex);
+      return;
+    }
+    window.location.hash = buildBookHash(issueId, page);
+    this.loadIssue(issueId, page);
   }
 
   private stepIssue(delta: number): void {
@@ -298,21 +338,85 @@ export class BookViewer {
     if (currentIndex === -1) return;
     const nextIndex = currentIndex + delta;
     if (nextIndex >= 0 && nextIndex < WITCHCRAFT_MAGAZINE_ISSUES.length) {
-      this.switchIssue(WITCHCRAFT_MAGAZINE_ISSUES[nextIndex].id);
+      this.switchIssue(WITCHCRAFT_MAGAZINE_ISSUES[nextIndex].id, 1);
     }
   }
 
   private updatePageIndicator(currentPage: number, totalPages: number): void {
     const pageInfo = this.container.querySelector('#magazine-page-info') as HTMLElement;
-    if (!pageInfo) return;
+    if (pageInfo) {
+      const isDouble = this.bookCanvas.getViewMode() === 'double';
+      if (isDouble && currentPage + 1 < totalPages && currentPage % 2 === 0) {
+        pageInfo.textContent = `${currentPage + 1}-${currentPage + 2} / ${totalPages}`;
+      } else {
+        pageInfo.textContent = `${currentPage + 1} / ${totalPages}`;
+      }
+    }
 
-    const isDouble = this.bookCanvas.getViewMode() === 'double';
-    if (isDouble && currentPage + 1 < totalPages && currentPage % 2 === 0) {
-      pageInfo.textContent = `${currentPage + 1}-${currentPage + 2} / ${totalPages}`;
-    } else {
-      pageInfo.textContent = `${currentPage + 1} / ${totalPages}`;
+    // Keep URL hash updated with current page without polluting back/forward navigation history
+    const humanPage = currentPage + 1;
+    const canonicalHash = buildBookHash(this.currentIssueId, humanPage);
+    if (typeof window !== 'undefined' && window.location.hash !== canonicalHash) {
+      window.history.replaceState(null, '', canonicalHash);
     }
 
     this.pageInspector?.onPageTurned();
+  }
+
+  private async handleShare(): Promise<void> {
+    const shareBtn = this.container.querySelector('#btn-share-page') as HTMLButtonElement;
+    const toast = this.container.querySelector('#share-toast') as HTMLElement;
+    const humanPage = this.bookCanvas.getCurrentPage() + 1;
+    const issue = WITCHCRAFT_MAGAZINE_ISSUES.find(m => m.id === this.currentIssueId);
+    const issueTitle = issue ? issue.title : 'Magazine';
+    const shareUrl = buildShareableUrl(this.currentIssueId, humanPage);
+
+    let copied = false;
+    if (typeof navigator !== 'undefined' && navigator.clipboard && navigator.clipboard.writeText) {
+      try {
+        await navigator.clipboard.writeText(shareUrl);
+        copied = true;
+      } catch {
+        copied = false;
+      }
+    }
+
+    if (!copied && typeof document !== 'undefined') {
+      try {
+        const ta = document.createElement('textarea');
+        ta.value = shareUrl;
+        ta.style.position = 'fixed';
+        ta.style.opacity = '0';
+        document.body.appendChild(ta);
+        ta.select();
+        copied = document.execCommand('copy');
+        document.body.removeChild(ta);
+      } catch {
+        copied = false;
+      }
+    }
+
+    if (shareBtn) {
+      const origText = shareBtn.textContent;
+      shareBtn.textContent = '✓';
+      shareBtn.classList.add('active');
+      setTimeout(() => {
+        shareBtn.textContent = origText;
+        shareBtn.classList.remove('active');
+      }, 1800);
+    }
+
+    if (toast) {
+      if (this.toastTimeout) {
+        clearTimeout(this.toastTimeout);
+      }
+      toast.innerHTML = copied
+        ? `<span>✨</span> Copied link to <strong>${issueTitle}</strong> (Page ${humanPage})!`
+        : `<span>🔗</span> Link: <code>${shareUrl}</code>`;
+      toast.classList.add('show');
+      this.toastTimeout = setTimeout(() => {
+        toast.classList.remove('show');
+      }, 2600);
+    }
   }
 }
