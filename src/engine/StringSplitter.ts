@@ -29,6 +29,51 @@ export function measureLineWidth(spans: FormattedSpan[], atlas: GlyphAtlas = def
  * fitting within maxWidth (default 114px).
  * Styles are seamlessly carried over across wrapped lines.
  */
+interface StyledChar {
+  char: string;
+  style: FormattedSpan;
+  width: number;
+}
+
+function coalesceCharsToLine(chars: StyledChar[]): LineLayout {
+  if (chars.length === 0) return { spans: [], width: 0 };
+  const spans: FormattedSpan[] = [];
+  let currentSpan: FormattedSpan | null = null;
+  let width = 0;
+
+  for (const c of chars) {
+    width += c.width;
+    if (
+      currentSpan &&
+      currentSpan.color === c.style.color &&
+      currentSpan.bold === c.style.bold &&
+      currentSpan.italic === c.style.italic &&
+      currentSpan.underlined === c.style.underlined &&
+      currentSpan.strikethrough === c.style.strikethrough &&
+      currentSpan.obfuscated === c.style.obfuscated
+    ) {
+      currentSpan.text += c.char;
+    } else {
+      currentSpan = {
+        text: c.char,
+        color: c.style.color,
+        bold: c.style.bold,
+        italic: c.style.italic,
+        underlined: c.style.underlined,
+        strikethrough: c.style.strikethrough,
+        obfuscated: c.style.obfuscated,
+      };
+      spans.push(currentSpan);
+    }
+  }
+  return { spans, width };
+}
+
+/**
+ * Splits text into lines matching Minecraft Java Edition's StringSplitter and LineBreakFinder.
+ * Operates on the formatted character stream to locate optimal line breaks at whitespace or character boundaries.
+ * Preserves multi-space indentation and styles seamlessly across wrapped lines.
+ */
 export function splitTextToLines(
   rawText: string,
   maxWidth = BOOK_TEXT_WIDTH,
@@ -64,12 +109,9 @@ export function splitTextToLines(
       continue;
     }
 
-    // Wrap the tokens in this paragraph
-    let currentLineSpans: FormattedSpan[] = [];
-    let currentLineWidth = 0;
-
+    // Flatten into styled character stream (matching StringDecomposer.iterateFormatted)
+    const chars: StyledChar[] = [];
     for (const span of spans) {
-      // Remember the last style seen
       carriedStyle = {
         color: span.color,
         bold: span.bold,
@@ -78,89 +120,60 @@ export function splitTextToLines(
         strikethrough: span.strikethrough,
         obfuscated: span.obfuscated,
       };
-
-      // Split span into words and spaces to allow breaking at whitespace
-      const tokens = span.text.match(/\S+|\s+/g) || [span.text];
-
-      for (const token of tokens) {
-        let tokenWidth = 0;
-        for (const ch of token) {
-          tokenWidth += atlas.getAdvance(ch, span.bold);
-        }
-
-        const isWhitespace = /^\s+$/.test(token);
-
-        if (currentLineWidth + tokenWidth <= maxWidth) {
-          // Fits on current line
-          currentLineSpans.push({
-            ...span,
-            text: token,
-          });
-          currentLineWidth += tokenWidth;
-        } else {
-          // Doesn't fit on current line.
-          // If current line has content, wrap it.
-          if (currentLineSpans.length > 0) {
-            // In Minecraft LineBreakFinder, lines break at lastSpace and do not include the trailing space.
-            const lastSpan = currentLineSpans[currentLineSpans.length - 1];
-            if (lastSpan.text === ' ') {
-              currentLineWidth -= atlas.getAdvance(' ', lastSpan.bold);
-              currentLineSpans.pop();
-            }
-
-            // If the overflowing token is a single inter-word space at the end of the line,
-            // wrap and discard only that single space.
-            if (isWhitespace && token === ' ') {
-              resultLines.push({ spans: currentLineSpans, width: currentLineWidth });
-              currentLineSpans = [];
-              currentLineWidth = 0;
-              continue;
-            }
-
-            // Otherwise (word or multi-space indentation), wrap current line and carry token to the next line.
-            resultLines.push({ spans: currentLineSpans, width: currentLineWidth });
-            currentLineSpans = [];
-            currentLineWidth = 0;
-          }
-
-          // Now place the token on the new line
-          if (tokenWidth <= maxWidth) {
-            currentLineSpans.push({
-              ...span,
-              text: token,
-            });
-            currentLineWidth = tokenWidth;
-          } else {
-            // Word/token itself is longer than maxWidth (114px), break character by character
-            let subWord = '';
-            let subWidth = 0;
-
-            for (const ch of token) {
-              const chAdv = atlas.getAdvance(ch, span.bold);
-              if (subWidth + chAdv > maxWidth && subWord.length > 0) {
-                resultLines.push({
-                  spans: [{ ...span, text: subWord }],
-                  width: subWidth,
-                });
-                subWord = ch;
-                subWidth = chAdv;
-              } else {
-                subWord += ch;
-                subWidth += chAdv;
-              }
-            }
-
-            if (subWord.length > 0) {
-              currentLineSpans.push({ ...span, text: subWord });
-              currentLineWidth = subWidth;
-            }
-          }
-        }
+      for (const ch of span.text) {
+        chars.push({
+          char: ch,
+          style: { ...span },
+          width: atlas.getAdvance(ch, span.bold),
+        });
       }
     }
 
-    if (currentLineSpans.length > 0) {
-      resultLines.push({ spans: currentLineSpans, width: currentLineWidth });
+    // Minecraft LineBreakFinder word-wrapping algorithm
+    let lineStart = 0;
+    let i = 0;
+    let currentWidth = 0;
+    let lastSpace = -1;
+
+    while (i < chars.length) {
+      const item = chars[i];
+      if (item.char === ' ') {
+        lastSpace = i;
+      }
+
+      if (currentWidth + item.width > maxWidth) {
+        if (lastSpace !== -1 && lastSpace >= lineStart) {
+          // If the break occurs at the start of a multi-space indentation block,
+          // preserve all indentation spaces on the new line.
+          // Otherwise (single inter-word space), discard the single wrapping space.
+          const isIndentationStart =
+            lastSpace === i && i + 1 < chars.length && chars[i + 1].char === ' ';
+          const nextStart = isIndentationStart ? lastSpace : lastSpace + 1;
+
+          const lineChars = chars.slice(lineStart, lastSpace);
+          resultLines.push(coalesceCharsToLine(lineChars));
+          lineStart = nextStart;
+          i = lineStart;
+          currentWidth = 0;
+          lastSpace = -1;
+          continue;
+        } else {
+          // No space on current line, break right before current character
+          const lineChars = chars.slice(lineStart, i);
+          resultLines.push(coalesceCharsToLine(lineChars));
+          lineStart = i;
+          currentWidth = 0;
+          lastSpace = -1;
+          continue;
+        }
+      }
+
+      currentWidth += item.width;
+      i++;
+    }
+
+    if (lineStart < chars.length) {
+      resultLines.push(coalesceCharsToLine(chars.slice(lineStart)));
     }
   }
 

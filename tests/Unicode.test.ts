@@ -13,15 +13,15 @@ describe('Unicode & Symbol Chat Support', () => {
   });
 
   it('provides exact accurate advances for Minecraft / Symbol Chat box drawing and magazine symbols', () => {
-    // Box drawing and borders (9px advance for 8px cell + 1px spacing)
+    // Box drawing and borders (matching Minecraft official glyphs.json and Unifont)
     expect(defaultGlyphAtlas.getAdvance('╔')).toBe(9);
     expect(defaultGlyphAtlas.getAdvance('═')).toBe(9);
-    expect(defaultGlyphAtlas.getAdvance('╗')).toBe(9);
-    expect(defaultGlyphAtlas.getAdvance('║')).toBe(9);
+    expect(defaultGlyphAtlas.getAdvance('╗')).toBe(8);
+    expect(defaultGlyphAtlas.getAdvance('║')).toBe(8);
     expect(defaultGlyphAtlas.getAdvance('─')).toBe(9);
     expect(defaultGlyphAtlas.getAdvance('━')).toBe(9);
     expect(defaultGlyphAtlas.getAdvance('│')).toBe(6);
-    expect(defaultGlyphAtlas.getAdvance('╚')).toBe(8);
+    expect(defaultGlyphAtlas.getAdvance('╚')).toBe(9);
     expect(defaultGlyphAtlas.getAdvance('╝')).toBe(8);
 
     // Blocks and shades
@@ -47,6 +47,23 @@ describe('Unicode & Symbol Chat Support', () => {
     const skullLines = splitTextToLines(skullLine, BOOK_TEXT_WIDTH, defaultGlyphAtlas);
     expect(skullLines).toHaveLength(1);
     expect(skullLines[0].width).toBe(113);
+
+    // Subscripts used in magazine lore
+    expect(defaultGlyphAtlas.getAdvance('ᵢ')).toBe(2);
+    expect(defaultGlyphAtlas.getAdvance('ₑ')).toBe(4);
+    expect(defaultGlyphAtlas.getAdvance('ₐ')).toBe(4);
+    expect(defaultGlyphAtlas.getAdvance('ᵤ')).toBe(4);
+
+    // Combining diacritical marks must have 0 advance in Minecraft
+    expect(defaultGlyphAtlas.getAdvance('҉')).toBe(0);
+    expect(defaultGlyphAtlas.getAdvance('͍')).toBe(0);
+    expect(defaultGlyphAtlas.getAdvance('̤')).toBe(0);
+
+    // Heavy box drawing corners
+    expect(defaultGlyphAtlas.getAdvance('┏')).toBe(9);
+    expect(defaultGlyphAtlas.getAdvance('┓')).toBe(6);
+    expect(defaultGlyphAtlas.getAdvance('┗')).toBe(9);
+    expect(defaultGlyphAtlas.getAdvance('┛')).toBe(6);
   });
 
   it('measures CJK multilingual characters properly', () => {
