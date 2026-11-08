@@ -24,8 +24,13 @@ describe('Unicode & Symbol Chat Support', () => {
     expect(defaultGlyphAtlas.getAdvance('╚')).toBe(9);
     expect(defaultGlyphAtlas.getAdvance('╝')).toBe(8);
 
-    // Blocks and shades
-    expect(defaultGlyphAtlas.getAdvance('█')).toBe(9);
+    // Blocks and shades (seamless connecting blocks: advance = 8px)
+    expect(defaultGlyphAtlas.getAdvance('█')).toBe(8);
+    expect(defaultGlyphAtlas.getAdvance('▃')).toBe(8);
+    expect(defaultGlyphAtlas.getAdvance('▄')).toBe(8);
+    expect(defaultGlyphAtlas.getAdvance('▅')).toBe(8);
+    expect(defaultGlyphAtlas.getAdvance('▆')).toBe(8);
+    expect(defaultGlyphAtlas.getAdvance('▇')).toBe(8);
     expect(defaultGlyphAtlas.getAdvance('▓')).toBe(9);
     expect(defaultGlyphAtlas.getAdvance('▒')).toBe(9);
     expect(defaultGlyphAtlas.getAdvance('░')).toBe(8);

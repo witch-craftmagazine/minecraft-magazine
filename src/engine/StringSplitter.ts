@@ -155,8 +155,16 @@ export function splitTextToLines(
           // If the break occurs at the start of a multi-space indentation block,
           // preserve all indentation spaces on the new line.
           // Otherwise (single inter-word space), discard the single wrapping space.
+          // If the break occurs at the very start of a multi-space indentation block
+          // (i.e. the character right before the spaces was a non-space that filled the line),
+          // preserve all indentation spaces on the new line.
+          // In the middle of an inter-word or margin-padding whitespace run, consume the wrapping space.
           const isIndentationStart =
-            lastSpace === i && i + 1 < chars.length && chars[i + 1].char === ' ';
+            lastSpace === i &&
+            i + 1 < chars.length &&
+            chars[i + 1].char === ' ' &&
+            i > lineStart &&
+            chars[i - 1].char !== ' ';
           const nextStart = isIndentationStart ? lastSpace : lastSpace + 1;
 
           const lineChars = chars.slice(lineStart, lastSpace);
