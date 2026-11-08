@@ -101,6 +101,13 @@ export function splitTextToLines(
           // Doesn't fit on current line.
           // If current line has content, wrap it.
           if (currentLineSpans.length > 0) {
+            // In Minecraft LineBreakFinder, lines break at lastSpace and do not include the trailing space.
+            const lastSpan = currentLineSpans[currentLineSpans.length - 1];
+            if (lastSpan.text === ' ') {
+              currentLineWidth -= atlas.getAdvance(' ', lastSpan.bold);
+              currentLineSpans.pop();
+            }
+
             // If the overflowing token is a single inter-word space at the end of the line,
             // wrap and discard only that single space.
             if (isWhitespace && token === ' ') {
