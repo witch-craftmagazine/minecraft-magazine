@@ -409,18 +409,25 @@ export class AsciiAmbientManager {
 
   private stampCandle(grid: string[][], col: number, row: number, t: number): void {
     const flicker = Math.sin(t * 3.5);
-    const flameShape = flicker > 0.3 ? ')' : flicker < -0.3 ? '(' : '!';
+    const flameShape = flicker > 0.4 ? ')' : flicker < -0.4 ? '(' : '!';
     const ember = Math.sin(t * 2.2) > 0.2 ? '✦' : '·';
-    const haloChar = Math.sin(t * 1.8) > 0.4 ? '*' : ' ';
+    const haloChar = Math.sin(t * 1.8) > 0.35 ? '*' : ' ';
+    const smokeWisp = Math.sin(t * 1.5) > 0.4 ? '~' : Math.sin(t * 1.5) < -0.4 ? '(' : ' ';
+
+    // Wax drip running down the candlestick side
+    const dripPhase = Math.floor((t * 0.8) % 4);
+    const leftDrip = dripPhase === 1 ? '.' : dripPhase === 2 ? '|' : ' ';
+    const rightDrip = dripPhase === 3 ? '.' : ' ';
 
     const sprite = [
+      `     ${smokeWisp}     `,
       `    ${haloChar}${ember}${haloChar}    `,
       `    (${flameShape})    `,
       '   ( * )   ',
       '    |i|    ',
       '   [---]   ',
-      '   |   |   ',
-      '   |   |   ',
+      `  ${leftDrip}|   |${rightDrip}  `,
+      '   |===|   ',
       '  (     )  ',
       ' _(_____)_c',
       '[_________]',
@@ -481,25 +488,47 @@ export class AsciiAmbientManager {
   }
 
   private stampCat(grid: string[][], col: number, row: number, t: number): void {
-    const breath = Math.sin(t * 0.9) > 0;
-    const tail = Math.sin(t * 1.5) > 0.4 ? '~' : '-';
-    const face = breath ? '  (=-.-=)   ' : '  (=u.u=)   ';
+    // 4-second breath cycle: back rises on inhalation, relaxes on exhalation
+    const breath = Math.sin(t * 1.57); // ~4 sec period
+    const isInhaling = breath > 0.3;
+    const isDeepInhale = breath > 0.75;
+
+    // Periodic tail tip flick and ear twitch
+    const flick = Math.sin(t * 0.8) > 0.65;
+    const tailTip = flick ? '.-`' : Math.sin(t * 1.4) > 0.3 ? '~' : '-';
+    
+    // Ear twitch: right ear flattens slightly during intermittent flicks
+    const earTwitch = Math.sin(t * 0.5) > 0.88;
+    const ears = earTwitch ? '   /\\_.-   ' : '   /\\_/\\   ';
+
+    // Face features relaxing during deep sleep
+    const face = isDeepInhale ? '  (=u.u=)  ' : '  (=-.-=)  ';
+
+    // Animated back and striped body rising with breath
+    const backLine = isDeepInhale
+      ? ' _(~~~~~)_. '
+      : isInhaling
+        ? ' _(_____)_  '
+        : '  (_____)_  ';
 
     const sprite = [
-      '   /\\_/\\    ',
+      ears,
       face,
-      ' /\'     \'\\  ',
-      `|         |${tail}`,
-      ' \\_______/  ',
+      ' /\'     \'\\ ',
+      backLine,
+      `|_________${tailTip}`,
     ];
 
-    // Drifting gentle sleep Z's
-    const zStage = Math.floor((t * 0.6) % 3);
-    if (row - 1 >= 0 && col + 11 < this.cols && zStage === 1) {
-      grid[row - 1][col + 11] = 'z';
+    // Drifting gentle sleep Z's with organic diagonal sway
+    const zPhase = Math.floor((t * 0.8) % 4);
+    if (row - 1 >= 0 && col + 10 < this.cols && zPhase >= 1) {
+      grid[row - 1][col + 10] = 'z';
     }
-    if (row - 2 >= 0 && col + 12 < this.cols && zStage === 2) {
+    if (row - 2 >= 0 && col + 12 < this.cols && zPhase >= 2) {
       grid[row - 2][col + 12] = 'Z';
+    }
+    if (row - 3 >= 0 && col + 14 < this.cols && zPhase >= 3) {
+      grid[row - 3][col + 14] = '·';
     }
 
     for (let r = 0; r < sprite.length; r++) {
@@ -673,79 +702,110 @@ export class AsciiAmbientManager {
   }
 
   /* ------------------------------------------------------------- */
-  /* SCENE 3: HALLOWEEN (Ceiling Webs, Bats & Jack-o'-Lanterns)    */
+  /* SCENE 3: HALLOWEEN (Web Hub, Silk Spider, Owl & Pumpkins)     */
   /* ------------------------------------------------------------- */
   private drawHalloweenScene(grid: string[][], t: number, isPortrait: boolean): void {
-    // 1. Sprawling webs across upper corners (placed below toolbar on mobile)
+    // 1. Sprawling webs across upper corners (below toolbar on mobile)
     const webStartRow = isPortrait ? 4 : 0;
-    const webRows = Math.min(5, Math.floor(this.rows * 0.16));
+    const webRows = Math.min(6, Math.floor(this.rows * 0.18));
     for (let r = 0; r < webRows; r++) {
       const targetR = webStartRow + r;
-      for (let c = 0; c < 14; c++) {
-        if (targetR < this.rows && c < this.cols && (c + r * 2) % 3 === 0) {
-          grid[targetR][c] = '\\';
+      for (let c = 0; c < 16; c++) {
+        if (targetR < this.rows && c < this.cols) {
+          if ((c + r * 2) % 4 === 0) grid[targetR][c] = '\\';
+          else if (r === 0 || (c === 0 && r > 0)) grid[targetR][c] = '_';
         }
       }
-      for (let c = this.cols - 14; c < this.cols; c++) {
-        if (targetR < this.rows && c >= 0 && (c - r * 2) % 3 === 0) {
+      for (let c = this.cols - 16; c < this.cols; c++) {
+        if (targetR < this.rows && c >= 0 && (c - r * 2) % 4 === 0) {
           grid[targetR][c] = '/';
         }
       }
     }
 
-    // 2. Spider descending on silk thread
-    const spiderCol = Math.max(3, Math.floor(this.cols * (isPortrait ? 0.15 : 0.09)));
-    const dropRange = Math.max(4, Math.floor(this.rows * 0.28));
-    const spiderY = Math.floor(webStartRow + 1 + Math.abs(Math.sin(t * 0.35)) * dropRange);
+    // 2. Spider descending on silk line with leg motion from spider.ts
+    const spiderCol = Math.max(4, Math.floor(this.cols * (isPortrait ? 0.16 : 0.10)));
+    const dropRange = Math.max(5, Math.floor(this.rows * 0.32));
+    const dropCycle = (t * 0.4) % 6.28;
+    const dropNorm = Math.abs(Math.sin(dropCycle));
+    const spiderY = Math.floor(webStartRow + 1 + dropNorm * dropRange);
 
     for (let r = webStartRow; r < spiderY; r++) {
       if (r < this.rows && spiderCol < this.cols) grid[r][spiderCol] = '|';
     }
 
-    if (spiderY < this.rows - 2 && spiderCol - 2 >= 0 && spiderCol + 2 < this.cols) {
-      const legPose = Math.sin(t * 1.2) > 0 ? '/' : '\\';
-      grid[spiderY][spiderCol - 2] = legPose;
-      grid[spiderY][spiderCol - 1] = '(';
-      grid[spiderY][spiderCol] = 'o';
-      grid[spiderY][spiderCol + 1] = ')';
-      grid[spiderY][spiderCol + 2] = legPose === '/' ? '\\' : '/';
-      if (spiderY + 1 < this.rows) {
-        grid[spiderY + 1][spiderCol - 1] = '/';
-        grid[spiderY + 1][spiderCol + 1] = '\\';
-      }
-    }
-
-    // 3. Horned Owl perched on branch
-    const owlCol = Math.min(this.cols - 16, Math.floor(this.cols * (isPortrait ? 0.72 : 0.82)));
-    const owlRow = isPortrait ? 4 : Math.max(2, Math.floor(this.rows * 0.15));
-    const blink = Math.sin(t * 0.55) > 0.85;
-    const eyes = blink ? '- -' : 'O O';
-    const owl = [
-      ' ,___, ',
-      ` [${eyes}] `,
-      ' /)__) ',
-      ' -"--"-',
+    // Stepping legs (alternating poses)
+    const isStep = Math.sin(t * 1.8) > 0;
+    const leftLegs = isStep ? [' \\ ', ' | ', '/  '] : ['  |', ' / ', '  /'];
+    const rightLegs = isStep ? [' / ', ' | ', '  \\'] : ['|  ', ' \\ ', '\\  '];
+    const spiderBody = [
+      `${leftLegs[0]}(##)${rightLegs[0]}`,
+      `${leftLegs[1]}(@)${rightLegs[1]}`,
+      `${leftLegs[2]}\\V/${rightLegs[2]}`,
     ];
-    for (let r = 0; r < owl.length; r++) {
-      if (owlRow + r < this.rows) {
-        for (let c = 0; c < owl[r].length; c++) {
-          if (owlCol + c < this.cols && owl[r][c] !== ' ') {
-            grid[owlRow + r][owlCol + c] = owl[r][c];
+    for (let r = 0; r < spiderBody.length; r++) {
+      const tr = spiderY + r;
+      if (tr < this.rows) {
+        const line = spiderBody[r];
+        const sc = spiderCol - 3;
+        for (let c = 0; c < line.length; c++) {
+          if (sc + c >= 0 && sc + c < this.cols && line[c] !== ' ') {
+            grid[tr][sc + c] = line[c];
           }
         }
       }
     }
 
-    // 4. Jack-o'-Lanterns along the bottom ground (further down on mobile)
+    // 3. Horned Owl perched on branch with head-turning and blinking (from owl.ts)
+    const owlCol = Math.min(this.cols - 16, Math.floor(this.cols * (isPortrait ? 0.72 : 0.82)));
+    const owlRow = isPortrait ? 4 : Math.max(2, Math.floor(this.rows * 0.14));
+
+    // Turn head: -1 looking left, 0 facing front, 1 looking right
+    const headCycle = (t * 0.25) % (Math.PI * 2);
+    const headTurn = Math.sin(headCycle);
+    const isLeft = headTurn < -0.4;
+    const isRight = headTurn > 0.4;
+
+    // Slow organic blink cycle
+    const isBlink = Math.sin(t * 0.45) > 0.82;
+    const eyes = isBlink
+      ? (isLeft ? '[- -]' : isRight ? '[- -]' : '[- -]')
+      : (isLeft ? '[o ·]' : isRight ? '[· o]' : '[o o]');
+    const beak = isLeft ? '<' : isRight ? '>' : 'v';
+    const tufts = isLeft ? '  /\\   /| ' : isRight ? ' |\\   /\\  ' : ' /\\   /\\  ';
+
+    const owlSprite = [
+      tufts,
+      ` ${eyes}  `,
+      `  \\ ${beak} /  `,
+      '  /)_(\\  ',
+      '  /"""\\  ',
+      '~~═════~' // Perched dead branch
+    ];
+
+    for (let r = 0; r < owlSprite.length; r++) {
+      if (owlRow + r < this.rows) {
+        const line = owlSprite[r];
+        for (let c = 0; c < line.length; c++) {
+          if (owlCol + c < this.cols && line[c] !== ' ') {
+            grid[owlRow + r][owlCol + c] = line[c];
+          }
+        }
+      }
+    }
+
+    // 4. Jack-o'-Lanterns along the bottom ground with candle flicker
     const groundY = isPortrait ? (this.rows - 3) : Math.min(this.rows - 4, Math.floor(this.rows * 0.88));
     const pumpkinCols = isPortrait 
       ? [Math.floor(this.cols * 0.22), Math.floor(this.cols * 0.78)]
       : [Math.floor(this.cols * 0.12), Math.floor(this.cols * 0.88)];
 
+    const grin = Math.sin(t * 2.1) > 0 ? '\\_/' : 'v-v';
     const pumpkin = [
       '  _/_  ',
-      ' (O_O) ',
-      '  `=\'  ',
+      ' /o.o\\ ',
+      `( ${grin} )`,
+      ' `===\' ',
     ];
 
     for (const pCol of pumpkinCols) {
@@ -760,13 +820,15 @@ export class AsciiAmbientManager {
       }
     }
 
-    // Bats in flight across open space
+    // Bats in flight across open space (wing flap cycle)
     const batX = Math.floor(((t * 12) % this.cols + this.cols) % this.cols);
     const batY = Math.floor(Math.sin(t * 0.8) * 3 + this.rows * 0.28);
-    if (batY >= 0 && batY < this.rows && batX + 4 < this.cols) {
-      grid[batY][batX] = '^';
-      grid[batY][batX + 1] = 'v';
-      grid[batY][batX + 2] = '^';
+    const wingPose = Math.floor((t * 6) % 3);
+    const batChars = wingPose === 0 ? ['/', '^', '\\'] : wingPose === 1 ? ['^', 'v', '^'] : ['-', 'o', '-'];
+    if (batY >= 0 && batY < this.rows && batX + 3 < this.cols) {
+      grid[batY][batX] = batChars[0];
+      grid[batY][batX + 1] = batChars[1];
+      grid[batY][batX + 2] = batChars[2];
     }
   }
 
@@ -774,7 +836,7 @@ export class AsciiAmbientManager {
   /* SCENE 4: WINTER / CHRISTMAS (Dense Snowstorm & Fences)        */
   /* ------------------------------------------------------------- */
   private drawWinterScene(grid: string[][], t: number, isPortrait: boolean): void {
-    // 1. Snow clouds in the upper sky (placed below toolbar on mobile)
+    // 1. Snow clouds in the upper sky (below toolbar on mobile)
     const cloudRow = isPortrait ? 4 : 1;
     for (let c = 4; c < this.cols - 12; c += 22) {
       const cloud = '.( ___ ).';
@@ -783,46 +845,73 @@ export class AsciiAmbientManager {
       }
     }
 
-    // 2. Heavy snowfall across all open space
-    const flakeCount = Math.min(85, Math.floor(this.cols * 0.95));
     const ground = isPortrait ? (this.rows - 1) : Math.min(this.rows - 2, Math.floor(this.rows * 0.92));
 
-    for (let i = 0; i < flakeCount; i++) {
-      const seed = i * 43.1;
-      const speedY = 0.5 + (i % 3) * 0.25;
-      const sway = Math.sin(t * 0.9 + seed) * 2.2;
-
-      const rawY = (seed + t * speedY * 6) % ground;
-      const r = Math.floor(rawY);
-      const c = Math.floor(((seed * 2.4 + sway) % this.cols + this.cols) % this.cols);
-
-      if (r >= 0 && r < ground && c >= 0 && c < this.cols) {
-        const glyph = (i % 5 === 0) ? '❅' : (i % 3 === 0) ? '*' : (i % 2 === 0) ? '+' : '·';
-        grid[r][c] = glyph;
+    // 2. Three-Tier Parallax Snowfall (from snowfall.ts)
+    // Layer 1: Fine distant micro-snow (40 flakes)
+    const farCount = Math.min(42, Math.floor(this.cols * 0.5));
+    for (let i = 0; i < farCount; i++) {
+      const seed = i * 29.7;
+      const v = 0.9;
+      const wind = 0.4 * Math.sin(t * 0.6 + seed);
+      const r = Math.floor((seed * 1.7 + t * v * 5) % ground);
+      const c = Math.floor(((seed * 3.1 + wind) % this.cols + this.cols) % this.cols);
+      if (r >= 0 && r < ground && c >= 0 && c < this.cols && grid[r][c] === ' ') {
+        grid[r][c] = '.';
       }
     }
 
-    // 3. Wooden fence with snow caps along the bottom (further down on mobile)
+    // Layer 2: Midfield flakes with steady drift (30 flakes)
+    const midCount = Math.min(32, Math.floor(this.cols * 0.4));
+    for (let i = 0; i < midCount; i++) {
+      const seed = i * 47.3;
+      const v = 1.7;
+      const sway = 1.1 * Math.sin(t * 1.1 + seed);
+      const r = Math.floor((seed * 2.3 + t * v * 5) % ground);
+      const c = Math.floor(((seed * 2.7 + sway) % this.cols + this.cols) % this.cols);
+      if (r >= 0 && r < ground && c >= 0 && c < this.cols && grid[r][c] === ' ') {
+        grid[r][c] = (i % 2 === 0) ? '+' : '·';
+      }
+    }
+
+    // Layer 3: Foreground fluffy snow crystals (15 large flakes)
+    const nearCount = Math.min(18, Math.floor(this.cols * 0.25));
+    for (let i = 0; i < nearCount; i++) {
+      const seed = i * 71.9;
+      const v = 2.6;
+      const sway = 2.2 * Math.sin(t * 1.5 + seed);
+      const r = Math.floor((seed * 1.1 + t * v * 6) % ground);
+      const c = Math.floor(((seed * 3.9 + sway) % this.cols + this.cols) % this.cols);
+      if (r >= 0 && r < ground && c >= 0 && c < this.cols) {
+        grid[r][c] = (i % 3 === 0) ? '❅' : '*';
+      }
+    }
+
+    // 3. Wooden fence with snow caps and rail drifts (from snowfall.ts)
     const fenceRow = ground - 2;
     if (fenceRow >= 0 && fenceRow < this.rows) {
       for (let c = 0; c < this.cols; c++) {
         if (c % 8 === 0) {
-          if (fenceRow - 1 >= 0) grid[fenceRow - 1][c] = '▔'; // snow cap on post
+          // Post with accumulated snow cap
+          if (fenceRow - 1 >= 0) grid[fenceRow - 1][c] = '▁';
           grid[fenceRow][c] = '|';
           if (fenceRow + 1 < this.rows) grid[fenceRow + 1][c] = '|';
         } else {
+          // Top rail with snow ridge
+          if (fenceRow - 1 >= 0 && c % 2 === 0) grid[fenceRow - 1][c] = '▔';
           grid[fenceRow][c] = '─';
         }
       }
     }
 
-    // 4. Little snowman in open bottom area
+    // 4. Little snowman in open bottom area with blowing scarf
     const snowmanCol = Math.max(2, Math.floor(this.cols * (isPortrait ? 0.75 : 0.85)));
     const snowmanRow = fenceRow - 3;
     if (snowmanRow >= 0 && snowmanRow + 3 < this.rows && snowmanCol + 7 < this.cols) {
+      const scarf = Math.sin(t * 1.8) > 0 ? '~-' : '~~';
       const snowman = [
         ' _[===]_ ',
-        '  (\'.\')  ',
+        `  ('.') ${scarf}`,
         '  ( : )  ',
         ' (  :  ) ',
       ];
@@ -840,32 +929,73 @@ export class AsciiAmbientManager {
   /* SCENE 5: ISSUE X (Corrupted CRT Television Static & Glitch)   */
   /* ------------------------------------------------------------- */
   private drawStaticScene(grid: string[][], t: number): void {
+    // 1. CRT Curved Frame on widescreen desktop displays
+    if (this.cols >= 60 && this.rows >= 16) {
+      const topY = 1;
+      const botY = this.rows - 2;
+      const leftX = 2;
+      const rightX = this.cols - 3;
+      
+      grid[topY][leftX] = '╭';
+      grid[topY][rightX] = '╮';
+      grid[botY][leftX] = '╰';
+      grid[botY][rightX] = '╯';
+      for (let c = leftX + 1; c < rightX; c++) {
+        grid[topY][c] = '─';
+        grid[botY][c] = '─';
+      }
+      for (let r = topY + 1; r < botY; r++) {
+        grid[r][leftX] = '│';
+        grid[r][rightX] = '│';
+      }
+    }
+
+    // 2. Rolling Horizontal Hum Bar and Static Snow (from tv-static.ts)
     const chars = ' .:+░▒▓█#X%§Ӝ';
-    const scanline = Math.floor((t * 5) % this.rows);
+    const humY = Math.floor((t * 7) % this.rows);
 
     for (let r = 0; r < this.rows; r++) {
-      const isScan = Math.abs(r - scanline) <= 1;
-      const density = isScan ? 0.45 : 0.12;
+      const distToHum = Math.abs(r - humY);
+      const isHumBar = distToHum <= 2;
+      const density = isHumBar ? 0.55 : 0.12;
 
       for (let c = 0; c < this.cols; c += 2) {
         const n = Math.sin(r * 12.9898 + c * 78.233 + t * 50);
         if (Math.abs(n) > 1 - density) {
-          const chIdx = Math.floor(Math.abs(n) * chars.length) % chars.length;
+          const chIdx = isHumBar
+            ? Math.floor(Math.abs(n) * 6 + 6) % chars.length
+            : Math.floor(Math.abs(n) * chars.length) % chars.length;
           grid[r][c] = chars[chIdx];
         }
       }
     }
 
-    // Intermittent corrupted lore fragments flashing in the static
-    const glitches = ['403 FORBIDDEN', 'WAKE UP', 'CORRUPTED', '{THIS BOOK SHOULD NOT EXIST}', 'ɨȶ'];
-    const glitchIdx = Math.floor(t * 0.8) % glitches.length;
+    // 3. Corrupted lore mantras with glitch spill
+    const glitches = [
+      '403 FORBIDDEN',
+      'WAKE UP',
+      'CORRUPTED',
+      '{THIS BOOK SHOULD NOT EXIST}',
+      'ɨȶ',
+      'BEWARE THE SHADOWS',
+      'DEATHCAP VOID',
+    ];
+    const glitchIdx = Math.floor(t * 0.7) % glitches.length;
     const gText = glitches[glitchIdx];
-    const gRow = Math.floor(((t * 3) % (this.rows - 4)) + 2);
-    const gCol = Math.floor(((t * 7) % Math.max(1, this.cols - gText.length)));
+    const gRow = Math.floor(((t * 2.5) % (this.rows - 6)) + 3);
+    const gCol = Math.floor(((t * 5.3) % Math.max(1, this.cols - gText.length)));
 
-    if (Math.sin(t * 2.5) > 0.4 && gRow < this.rows) {
+    if (Math.sin(t * 2.2) > 0.35 && gRow < this.rows) {
       for (let i = 0; i < gText.length; i++) {
         if (gCol + i < this.cols) grid[gRow][gCol + i] = gText[i];
+      }
+      // Runic glitch echo
+      const runes = 'ᚦᛟ§k';
+      for (let i = 0; i < 4; i++) {
+        const rc = gCol - 2 + i * 2;
+        if (rc >= 0 && rc < this.cols && gRow + 1 < this.rows) {
+          grid[gRow + 1][rc] = runes[i % runes.length];
+        }
       }
     }
   }
@@ -874,33 +1004,57 @@ export class AsciiAmbientManager {
   /* SCENE 6: INTRO (Celestial Moon Phases & Nebula Starlight)     */
   /* ------------------------------------------------------------- */
   private drawCelestialScene(grid: string[][], t: number, isPortrait: boolean): void {
-    // 1. Large detailed Moon (placed below toolbar on mobile)
-    const moonCol = Math.max(4, Math.floor(this.cols * (isPortrait ? 0.5 : 0.78)) - 4);
+    // 1. Detailed Moon with Lunar Maria and Phase Sweep (from moon-phases.ts)
+    const moonCol = Math.max(4, Math.floor(this.cols * (isPortrait ? 0.5 : 0.78)) - 5);
     const moonRow = isPortrait ? 4 : Math.max(1, Math.floor(this.rows * 0.08));
 
-    const moonPhase = Math.floor((t * 0.2) % 4);
-    let moonSprite = [
-      '   .----.   ',
-      '  /  ..  \\  ',
-      ' |  (  )  | ',
-      '  \\  \'\'  /  ',
-      '   `----\'   ',
-    ];
-    if (moonPhase === 0) {
+    // Phase cycle: 0 = new crescent, 1 = half moon, 2 = full moon with maria, 3 = gibbous
+    const phaseStep = Math.floor((t * 0.15) % 4);
+    let moonSprite: string[];
+
+    if (phaseStep === 0) {
+      // Waxing crescent
       moonSprite = [
-        '   .----.   ',
-        '  / (    \\  ',
-        ' | (      | ',
-        '  \\ (    /  ',
-        '   `----\'   ',
+        '    .---.    ',
+        '   / .-\' \\   ',
+        '  | /     |  ',
+        '  | |     |  ',
+        '  | \\     |  ',
+        '   \\ `-. /   ',
+        '    `---\'    ',
       ];
-    } else if (moonPhase === 1) {
+    } else if (phaseStep === 1) {
+      // First quarter (half moon)
       moonSprite = [
-        '   .----.   ',
-        '  / |    \\  ',
-        ' |  |     | ',
-        '  \\ |    /  ',
-        '   `----\'   ',
+        '    .---.    ',
+        '   / |   \\   ',
+        '  |  |    |  ',
+        '  |  |    |  ',
+        '  |  |    |  ',
+        '   \\ |   /   ',
+        '    `---\'    ',
+      ];
+    } else if (phaseStep === 2) {
+      // Full moon with lunar maria (Oceanus Procellarum, Imbrium)
+      moonSprite = [
+        '    .---.    ',
+        '   / ··. \\   ',
+        '  | ::::  |  ',
+        '  | (··)  |  ',
+        '  | .---. |  ',
+        '   \\ \'` /   ',
+        '    `---\'    ',
+      ];
+    } else {
+      // Waning gibbous with Tycho rays
+      moonSprite = [
+        '    .---.    ',
+        '   /   . \\   ',
+        '  |  .::: |  ',
+        '  |  (··) |  ',
+        '  |   ::: |  ',
+        '   \\   \' /   ',
+        '    `---\'    ',
       ];
     }
 
@@ -914,7 +1068,7 @@ export class AsciiAmbientManager {
       }
     }
 
-    // 2. Dense constellation stars and nebulas across the sky (below toolbar on mobile)
+    // 2. Constellation stars with multi-magnitude twinkle
     const starCount = Math.min(60, Math.floor(this.cols * 0.8));
     const minStarRow = isPortrait ? 4 : 1;
     for (let i = 0; i < starCount; i++) {
@@ -923,9 +1077,21 @@ export class AsciiAmbientManager {
       const r = minStarRow + Math.floor((seed * 0.45) % Math.max(1, this.rows - minStarRow));
       const pulse = Math.sin(t * 1.3 + seed);
 
-      if (r < this.rows && c < this.cols && pulse > 0.35) {
-        const glyph = pulse > 0.85 ? '✦' : pulse > 0.6 ? '*' : (i % 2 === 0) ? '+' : '·';
+      if (r < this.rows && c < this.cols && pulse > 0.35 && grid[r][c] === ' ') {
+        const glyph = pulse > 0.88 ? '✦' : pulse > 0.65 ? '*' : (i % 2 === 0) ? '+' : '·';
         grid[r][c] = glyph;
+      }
+    }
+
+    // Occasional shooting star streak across the upper firmament
+    const shootingStarT = (t * 0.5) % 8;
+    if (shootingStarT < 1.2) {
+      const sx = Math.floor((shootingStarT / 1.2) * (this.cols * 0.6) + 4);
+      const sy = Math.floor(minStarRow + (shootingStarT / 1.2) * 4);
+      if (sy < this.rows && sx + 3 < this.cols) {
+        grid[sy][sx] = '━';
+        grid[sy][sx + 1] = '━';
+        grid[sy][sx + 2] = '✦';
       }
     }
 
