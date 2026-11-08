@@ -39,7 +39,8 @@ export const MINECRAFT_SYMBOL_ADVANCES: Record<string, number> = {
   // Witchcraft Magazine Blinking Eye Easter Egg symbols (preserving exact 8px advance to prevent reflow)
   '⏼': 8, '◡': 8,
   // Block Elements (U+2580 - U+2588): advance = 8px (seamless touching volume/progress blocks)
-  '▀': 8, ' ': 8, '▂': 8, '▃': 8, '▄': 8, '▅': 8, '▆': 8, '▇': 8, '█': 8,
+  // Use explicit unicode escapes to prevent U+2581 (lower one eighth) from ever being confused with U+0020 (ASCII space)
+  '\u2580': 8, '\u2581': 8, '\u2582': 8, '\u2583': 8, '\u2584': 8, '\u2585': 8, '\u2586': 8, '\u2587': 8, '\u2588': 8,
   // Custom server and newer Unicode symbols
   '⛏': 9, '⯪': 8,
   // Combining diacritics / Zalgo (0px advance)
@@ -142,10 +143,12 @@ export class GlyphAtlas {
       this.advances.set(char, adv);
     }
 
-    // 4. Ensure formatting symbol and newlines always have 0 advance
+    // 4. Ensure formatting symbol and newlines always have 0 advance, and spaces are fixed at 4px
     this.advances.set('§', 0);
     this.advances.set('\n', 0);
     this.advances.set('\r', 0);
+    this.advances.set(' ', 4);
+    this.advances.set('\u00a0', 4);
   }
 
   private initMeasureCanvas(): void {
@@ -317,7 +320,7 @@ export class GlyphAtlas {
                 const char = rowStr[c];
                 if (char === '\u0000') continue;
 
-                let advance = this.advances.get(char);
+                let advance = (char === ' ' || char === '\u00a0') ? 4 : this.advances.get(char);
                 if (advance === undefined) {
                   let actualWidth = 7;
                   if (imgData && img) {
