@@ -18,9 +18,24 @@ describe('AsciiAmbientManager Backdrop System', () => {
     manager.destroy();
   });
 
-  it('initializes with a randomized standard scene (study or meadow)', () => {
-    const scene = manager.resolveSceneForIssue('issue1');
-    expect(['study', 'meadow']).toContain(scene);
+  it('resolves study scene for designated indoor study issues', () => {
+    expect(manager.resolveSceneForIssue('issue1')).toBe('study');
+    expect(manager.resolveSceneForIssue('issue3')).toBe('study');
+    expect(manager.resolveSceneForIssue('issue5')).toBe('study');
+    expect(manager.resolveSceneForIssue('issue9')).toBe('study');
+    expect(manager.resolveSceneForIssue('issue13')).toBe('study');
+    expect(manager.resolveSceneForIssue('issue15')).toBe('study');
+    expect(manager.resolveSceneForIssue('issue18')).toBe('study');
+  });
+
+  it('resolves meadow scene for designated night meadow issues', () => {
+    expect(manager.resolveSceneForIssue('issue2')).toBe('meadow');
+    expect(manager.resolveSceneForIssue('issue4')).toBe('meadow');
+    expect(manager.resolveSceneForIssue('issue8')).toBe('meadow');
+    expect(manager.resolveSceneForIssue('issue10')).toBe('meadow');
+    expect(manager.resolveSceneForIssue('issue14')).toBe('meadow');
+    expect(manager.resolveSceneForIssue('issue16')).toBe('meadow');
+    expect(manager.resolveSceneForIssue('issue20')).toBe('meadow');
   });
 
   it('resolves celestial scene for intro', () => {
@@ -45,45 +60,16 @@ describe('AsciiAmbientManager Backdrop System', () => {
     expect(manager.resolveSceneForIssue('issue19')).toBe('winter');
   });
 
-  it('enforces that characters strictly stop at the book boundary (no characters under book)', () => {
-    // Provide a mock bounds provider representing a 200x150 book page at (100, 50)
-    manager.setBoundsProvider(() => ({
-      left: 100,
-      top: 50,
-      right: 300,
-      bottom: 200,
-      width: 200,
-      height: 150,
-      x: 100,
-      y: 50,
-      toJSON: () => {},
-    } as DOMRect));
-
-    // Populate a test grid with characters everywhere
-    const rows = 30;
-    const cols = 80;
-    const grid: string[][] = Array.from({ length: rows }, () => new Array<string>(cols).fill('#'));
-
-    // Apply the boundary mask
-    manager.maskBookBoundary(grid);
-
-    // Calculate expected masked cell boundaries:
-    // cellDim width ~ 7.2px, height ~ 13.5px
-    const minCol = Math.floor(100 / 7.2);
-    const maxCol = Math.ceil(300 / 7.2) - 1;
-    const minRow = Math.floor(50 / 13.5);
-    const maxRow = Math.ceil(200 / 13.5) - 1;
-
-    // Verify inside book rect is 100% blank
-    for (let r = minRow; r <= maxRow; r++) {
-      for (let c = minCol; c <= maxCol; c++) {
-        expect(grid[r][c]).toBe(' ');
-      }
-    }
-
-    // Verify outside cells still retain content
-    expect(grid[0][0]).toBe('#');
-    expect(grid[rows - 1][cols - 1]).toBe('#');
+  it('allows ascii background to flow continuously behind the book without artificial boundary holes', () => {
+    manager.setIssue('issue1');
+    const frame = manager.renderFrame();
+    // Grid has content throughout without empty square cutouts
+    expect(frame).toContain('═'); // Ceiling beams
+    expect(frame).toContain('─'); // Clean desk line
+    expect(frame).toContain('/\\_/\\'); // Cat ears
+    expect(frame).toContain('|===|'); // Potted fern rim
+    expect(frame).not.toContain('[|||||]'); // No barcode bookshelf stripes
+    expect(frame).not.toContain('[////]'); // No diagonal stripes
   });
 
   it('toggles ambient backdrop on and off', () => {

@@ -2,14 +2,15 @@
  * AsciiAmbientManager: Ambient animated ASCII art backdrop for Minecraft Magazine.
  * 
  * Features:
- * - Strictly stops at the book's boundary (never goes under or behind the book).
+ * - Flows seamlessly across the viewport and behind the book (no artificial bounding box barrier).
  * - High-contrast, vibrant, and atmospheric colors with text-shadow glow.
  * - Mobile responsive: adaptively fills top and bottom margins on portrait screens
  *   and side flanks on widescreen displays.
  * - Slow, hypnotic animation (~8-10 FPS).
  * - Dynamic scene selection:
- *   - Standard issues: Randomizes on load between "Witch's Study" (Candle & Cat) and "Night Meadow" (Fireflies).
- *   - Holiday issues: "Halloween" (Spider, Owl, Jack-o'-Lanterns) for Issues 6, 11, 17;
+ *   - Witch's Study (Candle, Sleeping Cat, Potted Fern & Apothecary): Issues 1, 3, 5, 9, 13, 15, 18.
+ *   - Night Meadow (Treeline, Crescent Moon & Bioluminescent Fireflies): Issues 2, 4, 8, 10, 14, 16, 20.
+ *   - Holiday editions: "Halloween" (Spider, Owl, Jack-o'-Lanterns) for Issues 6, 11, 17;
  *     "Winter" (Snowfall & Frost) for Issues 7, 12, 19.
  *   - Issue X: Corrupted "Static" (CRT TV Static, glitch scanlines, corrupted mantras).
  *   - Intro: "Celestial" (Moon Phases, Constellations & Starlight).
@@ -25,8 +26,6 @@ interface CellDimensions {
 export class AsciiAmbientManager {
   private container: HTMLElement;
   private preElement: HTMLPreElement;
-  private canvasElement: HTMLCanvasElement | null = null;
-  private boundsProvider: (() => DOMRect | null) | null = null;
   private currentScene: AmbientSceneType = 'meadow';
   private defaultStandardScene: AmbientSceneType;
   private isRunning = false;
@@ -85,12 +84,12 @@ export class AsciiAmbientManager {
     }
   }
 
-  public setCanvasElement(canvas: HTMLCanvasElement | null): void {
-    this.canvasElement = canvas;
+  public setCanvasElement(_canvas: HTMLCanvasElement | null): void {
+    // Retained for interface compatibility; boundary masking is removed.
   }
 
-  public setBoundsProvider(provider: (() => DOMRect | null) | null): void {
-    this.boundsProvider = provider;
+  public setBoundsProvider(_provider: (() => DOMRect | null) | null): void {
+    // Retained for interface compatibility; boundary masking is removed.
   }
 
   public setIssue(issueId: string): void {
@@ -106,7 +105,7 @@ export class AsciiAmbientManager {
     if (issueId === 'intro') {
       return 'celestial';
     }
-    if (issueId === 'issue2023' || issueId === 'issueX' || issueId === 'issue11.5') {
+    if (issueId === 'issue2023' || issueId === 'issueX' || issueId === 'issue11.5' || issueId === 'halloween-special-2023') {
       return 'static';
     }
     if (['issue6', 'issue11', 'issue17'].includes(issueId)) {
@@ -114,6 +113,14 @@ export class AsciiAmbientManager {
     }
     if (['issue7', 'issue12', 'issue19'].includes(issueId)) {
       return 'winter';
+    }
+    // Specific issues switched to the night meadow design
+    if (['issue2', 'issue4', 'issue8', 'issue10', 'issue14', 'issue16', 'issue20'].includes(issueId)) {
+      return 'meadow';
+    }
+    // Specific issues assigned to witch's study design
+    if (['issue1', 'issue3', 'issue5', 'issue9', 'issue13', 'issue15', 'issue18'].includes(issueId)) {
+      return 'study';
     }
     return this.defaultStandardScene;
   }
@@ -277,7 +284,8 @@ export class AsciiAmbientManager {
   };
 
   /**
-   * Renders the active ASCII scene and blanks out any cell intersecting the book boundary.
+   * Renders the active ASCII scene across the entire viewport.
+   * Characters flow seamlessly behind the book with no artificial boundary mask.
    */
   public renderFrame(): string {
     const grid: string[][] = Array.from({ length: this.rows }, () => new Array<string>(this.cols).fill(' '));
@@ -305,91 +313,22 @@ export class AsciiAmbientManager {
         break;
     }
 
-    // 2. CRITICAL CONSTRAINT: Blank out all characters intersecting the book boundary
-    this.maskBookBoundary(grid);
-
-    // 3. Serialize grid to pre element
+    // 2. Serialize grid to pre element (flows behind book)
     const text = grid.map(row => row.join('')).join('\n');
     this.preElement.textContent = text;
     return text;
   }
 
   /**
-   * Overwrites all cells that fall within the visible book page's screen coordinates with blank spaces (' ').
-   * Ensures that characters never render behind or inside the open book while allowing them to come right up
-   * to the physical edge of the book page without artificial bloated margins.
+   * Optional helper kept for backwards compatibility.
+   * No longer called automatically by renderFrame().
    */
-  public maskBookBoundary(grid: string[][]): void {
-    let bookRect: DOMRect | null = null;
-
-    if (this.boundsProvider) {
-      bookRect = this.boundsProvider();
-    }
-
-    if (!bookRect) {
-      // Fallback: Infer visible book page from canvas dimensions (excluding transparent canvas margins)
-      let cRect: DOMRect | null = null;
-      if (this.canvasElement && typeof this.canvasElement.getBoundingClientRect === 'function') {
-        cRect = this.canvasElement.getBoundingClientRect();
-      } else if (typeof document !== 'undefined' && typeof document.querySelector === 'function') {
-        const el = document.querySelector('.canvas-wrapper canvas') as HTMLElement;
-        if (el && typeof el.getBoundingClientRect === 'function') {
-          cRect = el.getBoundingClientRect();
-        }
-      }
-
-      if (cRect && cRect.width > 0 && cRect.height > 0) {
-        const isDouble = (cRect.width / cRect.height) > 1.3;
-        const baseW = isDouble ? 344 : 192;
-        const scaleX = cRect.width / baseW;
-        const scaleY = cRect.height / 192;
-        const minLocalX = isDouble ? 26 : 20;
-        const maxLocalX = isDouble ? 318 : 166;
-        bookRect = {
-          left: cRect.left + minLocalX * scaleX,
-          right: cRect.left + maxLocalX * scaleX,
-          top: cRect.top + 1 * scaleY,
-          bottom: cRect.top + 181 * scaleY,
-          width: (maxLocalX - minLocalX) * scaleX,
-          height: 180 * scaleY,
-          x: cRect.left + minLocalX * scaleX,
-          y: cRect.top + 1 * scaleY,
-          toJSON: () => ({}),
-        } as DOMRect;
-      }
-    }
-
-    if (!bookRect || bookRect.width === 0 || bookRect.height === 0) {
-      return;
-    }
-
-    // Relative to the pre element's screen coordinates
-    const preRect = (this.preElement && typeof this.preElement.getBoundingClientRect === 'function')
-      ? this.preElement.getBoundingClientRect()
-      : { left: 0, top: 0 };
-
-    const relLeft = bookRect.left - preRect.left;
-    const relRight = bookRect.right - preRect.left;
-    const relTop = bookRect.top - preRect.top;
-    const relBottom = bookRect.bottom - preRect.top;
-
-    // Mask strictly the cells that intersect the book page boundary
-    const minCol = Math.max(0, Math.floor(relLeft / this.cellDim.width));
-    const maxCol = Math.min(this.cols - 1, Math.ceil(relRight / this.cellDim.width) - 1);
-    const minRow = Math.max(0, Math.floor(relTop / this.cellDim.height));
-    const maxRow = Math.min(this.rows - 1, Math.ceil(relBottom / this.cellDim.height) - 1);
-
-    for (let r = minRow; r <= maxRow; r++) {
-      if (grid[r]) {
-        for (let c = minCol; c <= maxCol; c++) {
-          grid[r][c] = ' ';
-        }
-      }
-    }
+  public maskBookBoundary(_grid: string[][]): void {
+    // Deliberately removed: ASCII background flows naturally behind the book.
   }
 
   /* ------------------------------------------------------------- */
-  /* SCENE 1: THE WITCH'S STUDY (Expansive Desk & Ceiling Beams)   */
+  /* SCENE 1: THE WITCH'S STUDY (Desk, Candle, Fern & Cat)         */
   /* ------------------------------------------------------------- */
   private drawStudyScene(grid: string[][], t: number, isPortrait: boolean): void {
     // 1. Top Ceiling: Wooden beams & hanging dried herbs
@@ -411,57 +350,113 @@ export class AsciiAmbientManager {
       }
     }
 
-    // 2. Bottom Desk Surface across the entire width
-    const deskY = Math.max(this.rows - 8, Math.floor(this.rows * 0.84));
-    if (deskY < this.rows) {
-      for (let c = 0; c < this.cols; c++) {
-        grid[deskY][c] = '═';
+    // 2. Gentle magical dust motes floating in the room
+    const moteCount = Math.min(20, Math.floor(this.cols * 0.25));
+    for (let i = 0; i < moteCount; i++) {
+      const seed = i * 47.1;
+      const c = Math.floor((seed * 3.7 + t * 0.5) % this.cols);
+      const r = Math.floor(beamRow + 2 + ((seed * 1.9) % Math.max(1, this.rows - 10)));
+      const twinkle = Math.sin(t * 1.6 + seed);
+      if (r >= 0 && r < this.rows && c >= 0 && c < this.cols && twinkle > 0.65) {
+        grid[r][c] = twinkle > 0.88 ? '✦' : '·';
       }
     }
 
-    // Placement of Candle & Cat adaptively for mobile or desktop
+    // 3. Desk surface across the entire bottom (clean horizontal wood desk)
+    const deskY = Math.max(this.rows - 7, Math.floor(this.rows * 0.86));
+    if (deskY < this.rows) {
+      for (let c = 0; c < this.cols; c++) {
+        grid[deskY][c] = '─';
+      }
+    }
+
+    // 4. Stamping Fern, Candle, Cat & Potion Flask
     if (isPortrait) {
-      // Mobile Portrait: Place candle and sleeping cat in the generous bottom margin below the book
-      const baseRow = Math.min(this.rows - 7, deskY - 6);
-      const candleCol = Math.max(2, Math.floor(this.cols * 0.12));
-      const catCol = Math.min(this.cols - 28, Math.floor(this.cols * 0.52));
+      // Mobile Portrait: Arrange in the bottom margin below the book
+      const baseRow = Math.min(this.rows - 9, deskY - 8);
+
+      // Left: Glowing Candle
+      const candleCol = Math.max(1, Math.floor(this.cols * 0.04));
       this.stampCandle(grid, candleCol, baseRow, t);
-      this.stampCat(grid, catCol, baseRow + 1, t);
+
+      // Center: Potted Fern (if enough room)
+      if (this.cols >= 46) {
+        const fernCol = Math.floor(this.cols * 0.38);
+        this.stampFern(grid, fernCol, baseRow + 1, t);
+      }
+
+      // Right: Sleeping Cat
+      const catCol = Math.min(this.cols - 14, Math.floor(this.cols * 0.68));
+      this.stampCat(grid, catCol, baseRow + 4, t);
     } else {
-      // Desktop Widescreen: Candle on the left flank, Cat on the right flank
-      const candleCol = Math.max(3, Math.floor(this.cols * 0.06));
-      const candleRow = Math.max(4, Math.floor(this.rows * 0.45));
-      this.stampCandle(grid, candleCol, candleRow, t);
+      // Desktop Widescreen:
+      // Left side: Lush Potted Fern & Glowing Brass Candle
+      const fernCol = Math.max(2, Math.floor(this.cols * 0.04));
+      const candleCol = Math.min(Math.floor(this.cols * 0.22), fernCol + 15);
+      const baseRow = Math.min(this.rows - 10, deskY - 9);
 
-      const catCol = Math.min(this.cols - 32, Math.floor(this.cols * 0.74));
-      const catRow = Math.max(4, Math.floor(this.rows * 0.55));
-      this.stampCat(grid, catCol, catRow, t);
+      this.stampFern(grid, fernCol, baseRow + 1, t);
+      this.stampCandle(grid, candleCol, baseRow, t);
 
-      // Book shelves on the far sides
-      for (let r = 5; r < deskY; r += 4) {
-        const shelf = '[|||||] [////]';
-        for (let i = 0; i < shelf.length; i++) {
-          if (candleCol + i < this.cols) grid[r][candleCol + i] = shelf[i];
-          if (catCol + i < this.cols) grid[r][catCol + i] = shelf[i];
+      // Right side: Potion Flask & Sleeping Cat
+      const catCol = Math.min(this.cols - 16, Math.floor(this.cols * 0.82));
+      const flaskCol = Math.max(catCol - 12, Math.floor(this.cols * 0.68));
+
+      this.stampPotionFlask(grid, flaskCol, baseRow + 4, t);
+      this.stampCat(grid, catCol, baseRow + 4, t);
+    }
+  }
+
+  private stampCandle(grid: string[][], col: number, row: number, t: number): void {
+    const flicker = Math.sin(t * 3.5);
+    const flameShape = flicker > 0.3 ? ')' : flicker < -0.3 ? '(' : '!';
+    const ember = Math.sin(t * 2.2) > 0.2 ? '✦' : '·';
+    const haloChar = Math.sin(t * 1.8) > 0.4 ? '*' : ' ';
+
+    const sprite = [
+      `    ${haloChar}${ember}${haloChar}    `,
+      `    (${flameShape})    `,
+      '   ( * )   ',
+      '    |i|    ',
+      '   [---]   ',
+      '   |   |   ',
+      '   |   |   ',
+      '  (     )  ',
+      ' _(_____)_c',
+      '[_________]',
+    ];
+
+    for (let r = 0; r < sprite.length; r++) {
+      const targetRow = row + r;
+      if (targetRow >= 0 && targetRow < this.rows) {
+        const line = sprite[r];
+        for (let c = 0; c < line.length; c++) {
+          const targetCol = col + c;
+          if (targetCol >= 0 && targetCol < this.cols && line[c] !== ' ') {
+            grid[targetRow][targetCol] = line[c];
+          }
         }
       }
     }
   }
 
-  private stampCandle(grid: string[][], col: number, row: number, t: number): void {
-    const flameFlicker = Math.sin(t * 2.8) > 0.2 ? ')' : Math.sin(t * 3.3) < -0.2 ? '(' : '|';
-    const halo = Math.sin(t * 1.8) > 0 ? '*' : '·';
+  private stampFern(grid: string[][], col: number, row: number, t: number): void {
+    const sway = Math.sin(t * 1.4);
+    const topRow = sway > 0.3 
+      ? '   . \\ | / . ' 
+      : sway < -0.3 
+        ? ' . \\ | / .   ' 
+        : '  . \\ | / .  ';
 
     const sprite = [
-      `     ${halo}     `,
-      `    ${halo}(${flameFlicker})${halo}    `,
-      '     |i|     ',
-      '    [===]    ',
-      '    |   |    ',
-      '    |   |    ',
-      '   /|   |\\   ',
-      '  (_______)  ',
-      '  [=======]  ',
+      topRow,
+      '  . \\ | / .  ',
+      '-( (\\ | /) )-',
+      '  (( \\|/ ))  ',
+      '   (__|__)   ',
+      '    |===|    ',
+      '    \\   /    ',
+      '     `=\'     ',
     ];
 
     for (let r = 0; r < sprite.length; r++) {
@@ -480,30 +475,49 @@ export class AsciiAmbientManager {
 
   private stampCat(grid: string[][], col: number, row: number, t: number): void {
     const breath = Math.sin(t * 0.9) > 0;
-    const earFlicker = Math.sin(t * 0.4) > 0.8;
-    const zFloat = Math.floor((t * 0.5) % 3);
-
-    const backLine = breath 
-      ? '      _..--------.._     ' 
-      : '      _..-------.._      ';
-
-    const earLine = earFlicker 
-      ? '            /\\    .-/\\   ' 
-      : '            /\\      /\\   ';
+    const tail = Math.sin(t * 1.5) > 0.4 ? '~' : '-';
+    const face = breath ? '  (=-.-=)   ' : '  (=u.u=)   ';
 
     const sprite = [
-      earLine,
-      '           /  `----\'  \\  ',
-      '          |  `-\'  `-\'  | ',
-      backLine,
-      '   /      )   )   )   )  ',
-      '  |______(_____.---.____)',
+      '   /\\_/\\    ',
+      face,
+      ' /\'     \'\\  ',
+      `|         |${tail}`,
+      ' \\_______/  ',
     ];
 
-    // Drifting Z's
-    if (row - 1 >= 0 && col + 24 < this.cols) {
-      grid[row - 1][col + 24] = zFloat === 1 ? 'z' : zFloat === 2 ? 'Z' : ' ';
+    // Drifting gentle sleep Z's
+    const zStage = Math.floor((t * 0.6) % 3);
+    if (row - 1 >= 0 && col + 11 < this.cols && zStage === 1) {
+      grid[row - 1][col + 11] = 'z';
     }
+    if (row - 2 >= 0 && col + 12 < this.cols && zStage === 2) {
+      grid[row - 2][col + 12] = 'Z';
+    }
+
+    for (let r = 0; r < sprite.length; r++) {
+      const targetRow = row + r;
+      if (targetRow >= 0 && targetRow < this.rows) {
+        const line = sprite[r];
+        for (let c = 0; c < line.length; c++) {
+          const targetCol = col + c;
+          if (targetCol >= 0 && targetCol < this.cols && line[c] !== ' ') {
+            grid[targetRow][targetCol] = line[c];
+          }
+        }
+      }
+    }
+  }
+
+  private stampPotionFlask(grid: string[][], col: number, row: number, t: number): void {
+    const bubble = Math.sin(t * 2.5) > 0 ? '✦' : '·';
+    const sprite = [
+      '   ( )   ',
+      '  [---]  ',
+      '  /   \\  ',
+      ` |  ${bubble}  | `,
+      '  \\___/  ',
+    ];
 
     for (let r = 0; r < sprite.length; r++) {
       const targetRow = row + r;
