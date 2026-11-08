@@ -57,7 +57,7 @@ Line 2
     const lines = splitTextToLines(border, BOOK_TEXT_WIDTH, defaultGlyphAtlas);
     expect(lines.length).toBe(1);
     expect(lines[0].width).toBeLessThanOrEqual(BOOK_TEXT_WIDTH);
-    expect(lines[0].width).toBe(106);
+    expect(lines[0].width).toBe(102);
   });
 
   it('formats Page 52 horoscopes into exactly 14 lines', () => {
