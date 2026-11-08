@@ -24,13 +24,13 @@ describe('Unicode & Symbol Chat Support', () => {
     expect(defaultGlyphAtlas.getAdvance('╚')).toBe(9);
     expect(defaultGlyphAtlas.getAdvance('╝')).toBe(8);
 
-    // Blocks and shades (seamless connecting blocks: advance = 8px)
-    expect(defaultGlyphAtlas.getAdvance('█')).toBe(8);
-    expect(defaultGlyphAtlas.getAdvance('▃')).toBe(8);
-    expect(defaultGlyphAtlas.getAdvance('▄')).toBe(8);
-    expect(defaultGlyphAtlas.getAdvance('▅')).toBe(8);
-    expect(defaultGlyphAtlas.getAdvance('▆')).toBe(8);
-    expect(defaultGlyphAtlas.getAdvance('▇')).toBe(8);
+    // Blocks and shades (vanilla Minecraft Unifont & BitmapProvider: 8px glyph width + 1px side-bearing padding = 9px advance)
+    expect(defaultGlyphAtlas.getAdvance('█')).toBe(9);
+    expect(defaultGlyphAtlas.getAdvance('▃')).toBe(9);
+    expect(defaultGlyphAtlas.getAdvance('▄')).toBe(9);
+    expect(defaultGlyphAtlas.getAdvance('▅')).toBe(9);
+    expect(defaultGlyphAtlas.getAdvance('▆')).toBe(9);
+    expect(defaultGlyphAtlas.getAdvance('▇')).toBe(9);
     expect(defaultGlyphAtlas.getAdvance('▓')).toBe(9);
     expect(defaultGlyphAtlas.getAdvance('▒')).toBe(9);
     expect(defaultGlyphAtlas.getAdvance('░')).toBe(8);
@@ -165,5 +165,26 @@ describe('Unicode & Symbol Chat Support', () => {
 
     // ✯ should NOT be registered as a custom bitmap glyph
     expect(atlas.getAdvance('✯')).toBe(8); // default Unicode star width from glyph_sizes.bin, not 24/32px weapon
+  });
+
+  it('aligns all rows of Enderman pixel art on Issue 2 Page 42 with 5 leading spaces', () => {
+    const rawLine = '     ████████           §0█§5██§0██§5██§0█';
+    const lines = splitTextToLines(rawLine, 114, defaultGlyphAtlas);
+    expect(lines.length).toBe(2);
+    // Line 1: 5 spaces + 8 blocks (9px each) + 5 spaces = 20 + 72 + 20 = 112px <= 114px
+    expect(lines[0].width).toBe(112);
+    expect(lines[0].spans.map(s => s.text).join('')).toBe('     ████████     ');
+    // Line 2: wrapped after 6th space, remaining 5 spaces + 8 blocks = 5 leading spaces!
+    const line2Text = lines[1].spans.map(s => s.text).join('');
+    expect(line2Text.startsWith('     ')).toBe(true);
+    expect(line2Text).toBe('     ████████');
+    expect(lines[1].width).toBe(92);
+  });
+
+  it('fits Issue 1 Page 5 volume meter within 114px without line wrapping', () => {
+    const volumeLine = '§8Volume: §c▃▄▅▆▇ 100%';
+    const lines = splitTextToLines(volumeLine, 114, defaultGlyphAtlas);
+    expect(lines.length).toBe(1);
+    expect(lines[0].width).toBe(112);
   });
 });

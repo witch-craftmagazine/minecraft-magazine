@@ -38,9 +38,9 @@ export const MINECRAFT_SYMBOL_ADVANCES: Record<string, number> = {
   '✧': 5, '⋄': 4, '⋆': 4, '⋅': 2, '✦': 5,
   // Witchcraft Magazine Blinking Eye Easter Egg symbols (preserving exact 8px advance to prevent reflow)
   '⏼': 8, '◡': 8,
-  // Block Elements (U+2580 - U+2588): advance = 8px (seamless touching volume/progress blocks)
+  // Block Elements (U+2580 - U+2588): advance = 9px (matching vanilla Minecraft: 8px glyph width + 1px horizontal padding)
   // Use explicit unicode escapes to prevent U+2581 (lower one eighth) from ever being confused with U+0020 (ASCII space)
-  '\u2580': 8, '\u2581': 8, '\u2582': 8, '\u2583': 8, '\u2584': 8, '\u2585': 8, '\u2586': 8, '\u2587': 8, '\u2588': 8,
+  '\u2580': 9, '\u2581': 9, '\u2582': 9, '\u2583': 9, '\u2584': 9, '\u2585': 9, '\u2586': 9, '\u2587': 9, '\u2588': 9,
   // Custom server and newer Unicode symbols
   '⛏': 9, '⯪': 8,
   // Combining diacritics / Zalgo (0px advance)
@@ -226,6 +226,15 @@ export class GlyphAtlas {
 
     this.initMeasureCanvas();
     if (!this.measureCtx) {
+      if (code < 65536) {
+        const sizes = getMinecraftGlyphSizes();
+        const byte = sizes[code];
+        if (byte !== 0) {
+          const start = (byte >> 4) & 0x0f;
+          const end = byte & 0x0f;
+          return Math.floor((end - start + 1) / 2) + 1;
+        }
+      }
       return (code >= 0x2000 && code <= 0x2bff) || code > 0xff00 ? 8 : 5;
     }
 
