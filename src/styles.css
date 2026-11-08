@@ -520,18 +520,79 @@ body {
   color: #1a0f05;
 }
 
+#btn-ambient-toggle {
+  display: none !important;
+}
+
 @media (max-width: 680px) {
   .magazine-brand {
     display: none;
   }
-  .magazine-select {
-    max-width: 175px;
-    font-size: 13px;
-    padding: 4px 8px;
-  }
   .magazine-nav {
-    top: 8px;
-    padding: 4px 8px;
+    top: 6px;
+    padding: 3px 6px;
+    max-width: 96vw;
+  }
+  .magazine-nav-inner {
+    gap: 6px;
+    width: 100%;
+    justify-content: space-between;
+  }
+  .magazine-selector-wrapper {
+    gap: 3px;
+    min-width: 0;
+    flex-shrink: 1;
+  }
+  .issue-scroll-container {
+    max-width: clamp(100px, 36vw, 180px);
+    padding: 1px 2px;
+  }
+  .issue-chip {
+    padding: 2px 7px;
+    font-size: 12px;
+  }
+  .nav-arrow-btn {
+    width: 22px;
+    height: 22px;
+    font-size: 9px;
+    flex-shrink: 0;
+  }
+  .magazine-meta {
+    gap: 5px;
+    padding-left: 6px;
+    flex-shrink: 0;
+    border-left: 1px solid rgba(90, 65, 40, 0.35);
+  }
+  .magazine-page-info {
+    font-size: 12px;
+    white-space: nowrap;
+  }
+  .nav-icon-btn {
+    width: 26px;
+    height: 26px;
+    font-size: 12px;
+    flex-shrink: 0;
+  }
+}
+
+@media (max-width: 380px) {
+  .magazine-nav {
+    padding: 2px 4px;
+    max-width: 98vw;
+  }
+  .magazine-nav-inner {
+    gap: 4px;
+  }
+  .issue-scroll-container {
+    max-width: clamp(80px, 30vw, 120px);
+  }
+  .magazine-page-info {
+    font-size: 11px;
+  }
+  .nav-icon-btn {
+    width: 24px;
+    height: 24px;
+    font-size: 11px;
   }
 }
 
