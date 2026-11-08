@@ -13,13 +13,13 @@ describe('Unicode & Symbol Chat Support', () => {
   });
 
   it('provides exact accurate advances for Minecraft / Symbol Chat box drawing and magazine symbols', () => {
-    // Box drawing and borders (matching Minecraft official glyphs.json and Unifont)
+    // Box drawing and borders (matching Minecraft official glyphs.json and glyph_sizes.bin)
     expect(defaultGlyphAtlas.getAdvance('╔')).toBe(9);
     expect(defaultGlyphAtlas.getAdvance('═')).toBe(9);
     expect(defaultGlyphAtlas.getAdvance('╗')).toBe(8);
     expect(defaultGlyphAtlas.getAdvance('║')).toBe(8);
     expect(defaultGlyphAtlas.getAdvance('─')).toBe(9);
-    expect(defaultGlyphAtlas.getAdvance('━')).toBe(9);
+    expect(defaultGlyphAtlas.getAdvance('━')).toBe(5);
     expect(defaultGlyphAtlas.getAdvance('│')).toBe(6);
     expect(defaultGlyphAtlas.getAdvance('╚')).toBe(9);
     expect(defaultGlyphAtlas.getAdvance('╝')).toBe(8);
@@ -36,22 +36,24 @@ describe('Unicode & Symbol Chat Support', () => {
     expect(defaultGlyphAtlas.getAdvance('★')).toBe(8);
     expect(defaultGlyphAtlas.getAdvance('⛏')).toBe(9);
 
-    // Media player bar line: exactly 114px!
+    // Media player bar line: fits on single line
     const playerBar = ' 0:00 ━❍───── 9:05';
     const lines = splitTextToLines(playerBar, BOOK_TEXT_WIDTH, defaultGlyphAtlas);
     expect(lines).toHaveLength(1);
-    expect(lines[0].width).toBe(114);
+    expect(lines[0].width).toBe(109);
+    expect(lines[0].width).toBeLessThanOrEqual(BOOK_TEXT_WIDTH);
 
-    // Title skull line: exactly 113px!
+    // Title skull line: fits on single line
     const skullLine = '☠☠☠☠☠☠ ™ ☠☠☠☠☠☠';
     const skullLines = splitTextToLines(skullLine, BOOK_TEXT_WIDTH, defaultGlyphAtlas);
     expect(skullLines).toHaveLength(1);
     expect(skullLines[0].width).toBe(113);
+    expect(skullLines[0].width).toBeLessThanOrEqual(BOOK_TEXT_WIDTH);
 
     // Subscripts used in magazine lore
-    expect(defaultGlyphAtlas.getAdvance('ᵢ')).toBe(2);
-    expect(defaultGlyphAtlas.getAdvance('ₑ')).toBe(4);
-    expect(defaultGlyphAtlas.getAdvance('ₐ')).toBe(4);
+    expect(defaultGlyphAtlas.getAdvance('ᵢ')).toBe(3);
+    expect(defaultGlyphAtlas.getAdvance('ₑ')).toBe(3);
+    expect(defaultGlyphAtlas.getAdvance('ₐ')).toBe(3);
     expect(defaultGlyphAtlas.getAdvance('ᵤ')).toBe(4);
 
     // Combining diacritical marks must have 0 advance in Minecraft
@@ -60,10 +62,10 @@ describe('Unicode & Symbol Chat Support', () => {
     expect(defaultGlyphAtlas.getAdvance('̤')).toBe(0);
 
     // Heavy box drawing corners
-    expect(defaultGlyphAtlas.getAdvance('┏')).toBe(9);
-    expect(defaultGlyphAtlas.getAdvance('┓')).toBe(6);
-    expect(defaultGlyphAtlas.getAdvance('┗')).toBe(9);
-    expect(defaultGlyphAtlas.getAdvance('┛')).toBe(6);
+    expect(defaultGlyphAtlas.getAdvance('┏')).toBe(3);
+    expect(defaultGlyphAtlas.getAdvance('┓')).toBe(3);
+    expect(defaultGlyphAtlas.getAdvance('┗')).toBe(3);
+    expect(defaultGlyphAtlas.getAdvance('┛')).toBe(3);
   });
 
   it('measures CJK multilingual characters properly', () => {
@@ -157,6 +159,6 @@ describe('Unicode & Symbol Chat Support', () => {
     await atlas.loadBitmapProviders(providers, mockResolver);
 
     // ✯ should NOT be registered as a custom bitmap glyph
-    expect(atlas.getAdvance('✯')).toBe(7); // default Unicode star width, not 24/32px weapon
+    expect(atlas.getAdvance('✯')).toBe(8); // default Unicode star width from glyph_sizes.bin, not 24/32px weapon
   });
 });

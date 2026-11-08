@@ -1,5 +1,6 @@
 import { GlyphDrawInfo } from './types';
 import glyphsData from '../../public/assets/font/glyphs.json';
+import { getMinecraftGlyphSizes } from './glyphSizesData';
 
 export interface GlyphMapEntry {
   sheet: 'ascii' | 'accented' | 'nonlatin';
@@ -33,52 +34,14 @@ export const MINECRAFT_SYMBOL_ADVANCES: Record<string, number> = {
   '§': 0,
   '\n': 0,
   '\r': 0,
-  // Astrological zodiac symbols (Unifont halfwidth glyphs, 7px in MC)
-  '♈': 7, '♉': 7, '♊': 7, '♋': 7, '♌': 7, '♍': 7,
-  '♎': 7, '♏': 7, '♐': 7, '♑': 7, '♒': 7, '♓': 7,
-  // Sparkles, stars, dots & decorative operators
-  '✧': 5, '⋄': 4, '⋆': 4, '⋅': 2, '✦': 5, '★': 8, '☆': 8,
-  '✯': 7, '✰': 7, '✩': 7, '✵': 7, '✶': 7, '✹': 7, '✷': 7,
-  '•': 3, '·': 2, '…': 8, '“': 5, '”': 5, '‘': 3, '’': 3,
-  '☠': 8, '☕': 8, '✐': 8, '⚘': 8, '⛏': 9, '⚑': 8, '☾': 9, '☽': 9,
-  // Single and double box drawing lines and corners (matching glyphs.json and Unifont)
-  '┌': 9, '─': 9, '┐': 6, '└': 9, '┘': 6, '│': 6,
-  '┬': 9, '┴': 9, '├': 9, '┤': 6, '┼': 9,
-  '╔': 9, '═': 9, '╗': 8, '╚': 9, '╝': 8, '║': 8,
-  '╦': 9, '╩': 9, '╠': 9, '╣': 8, '╬': 9,
-  '╞': 9, '╡': 6, '╟': 9, '╢': 8, '╤': 9, '╧': 9, '╥': 9, '╨': 9,
-  '╓': 9, '╖': 8, '╙': 9, '╜': 8, '╒': 9, '╕': 6, '╘': 9, '╛': 6,
-  '╫': 9, '╪': 9,
-  // Rounded corners
-  '╭': 9, '╮': 6, '╰': 9, '╯': 6,
-  // Heavy corners and lines
-  '┏': 9, '┓': 6, '┗': 9, '┛': 6,
-  '┳': 9, '┻': 9, '┣': 9, '┫': 6, '╋': 9,
-  '━': 9, '┃': 6, '┈': 9, '┊': 2, '┆': 2,
-  '▀': 9, '▄': 9, '▌': 5, '▐': 9,
-  '░': 8, '▒': 9, '▓': 9, '█': 9,
-  '▂': 9, '▃': 9, '▅': 9, '▆': 9, '▇': 9,
-  '☹': 6, '☺': 6, '☻': 8, '♥': 6, '♣': 6, '♠': 6, '♡': 6, '♦': 6,
-  // Geometric & round shapes
-  '▢': 7, '■': 6, '□': 6, '▲': 6, '▼': 6, '▷': 7, '◁': 7, '◉': 8, '○': 6, '●': 5, '◎': 8, '⦿': 8,
-  // Media player controls & symbols
-  '❍': 8, '⊲': 6, '⊳': 6, 'Ⅱ': 6, '↻': 8, '↺': 8, '➤': 7,
-  // Superscript lowercase letters (Unifont, typically 3-4px)
-  'ᵃ': 4, 'ᵇ': 4, 'ᶜ': 4, 'ᵈ': 4, 'ᵉ': 4, 'ᶠ': 4, 'ᵍ': 4, 'ʰ': 4, 'ⁱ': 2, 'ʲ': 3, 'ᵏ': 4,
-  'ˡ': 2, 'ᵐ': 5, 'ⁿ': 5, 'ᵒ': 4, 'ᵖ': 4, 'ʳ': 3, 'ˢ': 3, 'ᵗ': 3, 'ᵘ': 4, 'ᵛ': 4, 'ʷ': 5,
-  'ˣ': 3, 'ʸ': 4, 'ᵟ': 4, 'ᶰ': 3, 'ʱ': 3,
-  // Superscript uppercase letters
-  'ᴬ': 4, 'ᴮ': 4, 'ᴰ': 4, 'ᴱ': 4, 'ᴳ': 4, 'ᴴ': 4, 'ᴵ': 2, 'ᴶ': 3, 'ᴷ': 4, 'ᴸ': 3,
-  'ᴹ': 5, 'ᴺ': 4, 'ᴼ': 4, 'ᴾ': 4, 'ᴿ': 4, 'ᵀ': 4, 'ᵁ': 4, 'ᵂ': 5, 'ᵞ': 4,
-  // Subscript letters & numbers (frequently used in spooky dialogue & lore)
-  'ₐ': 4, 'ₑ': 4, 'ₕ': 4, 'ᵢ': 2, 'ⱼ': 3, 'ₖ': 4, 'ₗ': 2, 'ₘ': 5, 'ₙ': 4, 'ₒ': 4,
-  'ₚ': 4, 'ᵣ': 3, 'ₛ': 3, 'ₜ': 3, 'ᵤ': 4, 'ᵥ': 4, 'ₓ': 4,
-  '₀': 5, '₁': 4, '₂': 5, '₃': 5, '₄': 5, '₅': 5, '₆': 5, '₇': 5, '₈': 5, '₉': 5,
-  '₊': 4, '₋': 4, '₌': 4, '₍': 3, '₎': 3,
-  // Small capitals (A-Z, nonlatin_european sheet values)
-  'ᴀ': 6, 'ʙ': 6, 'ᴄ': 6, 'ᴅ': 6, 'ᴇ': 6, 'ꜰ': 6, 'ɢ': 6, 'ʜ': 6, 'ɪ': 4, 'ᴊ': 6,
-  'ᴋ': 6, 'ʟ': 6, 'ᴍ': 6, 'ɴ': 6, 'ᴏ': 6, 'ᴘ': 6, 'ʀ': 6, 'ꜱ': 6, 'ᴛ': 6, 'ᴜ': 6,
-  'ᴠ': 6, 'ᴡ': 6, 'ʏ': 6, 'ᴢ': 6,
+  // Issue 1 Page 52 calibrated horoscope border symbols (must fit within 114px without wrapping)
+  '✧': 5, '⋄': 4, '⋆': 4, '⋅': 2, '✦': 5,
+  // Witchcraft Magazine Blinking Eye Easter Egg symbols (preserving exact 8px advance to prevent reflow)
+  '⏼': 8, '◡': 8,
+  // Custom server and newer Unicode symbols
+  '⛏': 9, '⯪': 8,
+  // Combining diacritics / Zalgo (0px advance)
+  '҉': 0, '͍': 0, '̤': 0, '̒': 0, '͌': 0, '̨': 0, '͋': 0, '̀': 0, '̂': 0, '̉': 0, '̊': 0, '̍': 0, '̑': 0, '̕': 0, '̖': 0, '͊': 0, 'ͤ': 0,
   // Mathematical Sans-Bold uppercase letters
   '𝗔': 6, '𝗕': 6, '𝗖': 6, '𝗗': 6, '𝗘': 6, '𝗙': 5, '𝗚': 6, '𝗛': 6, '𝗜': 3, '𝗝': 5,
   '𝗞': 6, '𝗟': 5, '𝗠': 7, '𝗡': 6, '𝗢': 6, '𝗣': 6, '𝗤': 6, '𝗥': 6, '𝗦': 6, '𝗧': 5,
@@ -122,27 +85,8 @@ export const MINECRAFT_SYMBOL_ADVANCES: Record<string, number> = {
   '𝚄': 6, '𝚅': 6, '𝚆': 6, '𝚇': 6, '𝚈': 6, '𝚉': 6,
   // Canadian Aboriginal Syllabics (Kaomoji)
   'ᗝ': 5, 'ᗒ': 5, 'ᗕ': 5, 'ᗜ': 5, 'ᗰ': 5, 'ᒪ': 4, 'ᕼ': 5, 'ᑎ': 4, 'ᗪ': 5, 'ᗨ': 5, 'ᗩ': 5,
-  // Oriya, Kannada, Tibetan & Tamil borders
-  '୨': 5, '୧': 5, 'ಠ': 6, '೦': 4, '༺': 5, '༻': 5, 'ஓ': 6, '๑': 5, '۩': 8,
-  // Misc symbols
-  '⊠': 8, '⊙': 7, '☉': 7, '⚆': 8, '❉': 8, '⛇': 8, '⚝': 7, '⛶': 8,
-  '∇': 8, '∀': 8, '≧': 8, '≦': 8, '▾': 7, '◡': 7, '◤': 8, '◥': 8, '‸': 4, '⯪': 8, '⏼': 8,
-  'ℓ': 4, 'ⅅ': 6, '⅋': 6, '℃': 8, 'ℱ': 6, 'ℬ': 6, 'ℐ': 4, 'ℛ': 6, 'ℒ': 6, 'ℂ': 6, 'ℍ': 6, 'ℙ': 6, 'ℕ': 6,
-  '✿': 7, '❀': 7, '❁': 7, '▰': 7, 'ȶ': 5, 'ɨ': 4, '◦': 4, '»': 7, '«': 7, '°': 5, '—': 9,
-  // Combining diacritics / Zalgo (0px advance)
-  '҉': 0, '͍': 0, '̤': 0, '̒': 0, '͌': 0, '̨': 0, '͋': 0, '̀': 0, '̂': 0, '̉': 0, '̊': 0, '̍': 0, '̑': 0, '̕': 0, '̖': 0, '͊': 0, 'ͤ': 0,
-  // Halfwidth CJK punctuation
-  '｡': 3, '｢': 3, '｣': 3, '､': 3, '･': 3, 'ｰ': 4, 'ﾟ': 3, 'ﾞ': 3,
-  // CJK Brackets (Fullwidth 9px)
-  '『': 9, '』': 9, '【': 9, '】': 9, '「': 9, '」': 9, '〈': 9, '〉': 9, '《': 9, '》': 9, '〔': 9, '〕': 9,
-  // Cherokee letters
-  'Ꮖ': 6, 'Ꮎ': 6, 'Ꭿ': 6, 'Ꮆ': 6, 'Ꮍ': 6, 'Ꮗ': 6, 'Ꮙ': 6, 'Ꮶ': 6, 'Ꮱ': 6, 'Ꭵ': 4, 'Ꮚ': 6,
-  // Misc typography & symbols
-  '❥': 7, '∘': 4, '❘': 2, '‿': 6, '⚜': 7, '☘': 7, '☏': 7, '☑': 10, '✈': 8, '✉': 8, '✎': 8, '✏': 8,
-  '✓': 8, '✔': 7, '✕': 8, '✖': 8, '✗': 8, '✘': 7, '❣': 6, '❤': 8, '❆': 8, '❅': 8, '❄': 8,
-  '🥔': 9, '💀': 9, '🔥': 7, '🖤': 9,
-  // In-game ASCII art & player symbols
-  '™': 9,
+  // Supplementary Plane Emojis (>0xFFFF)
+  '🥔': 9, '💀': 9, '🔥': 9, '🖤': 9,
 };
 
 // Server resource pack bitmap overrides to explicitly ignore.
@@ -167,11 +111,22 @@ export class GlyphAtlas {
   private measureCtx: CanvasRenderingContext2D | null = null;
 
   constructor() {
-    // 1. Populate custom and Unifont symbol advances first
-    for (const [char, adv] of Object.entries(MINECRAFT_SYMBOL_ADVANCES)) {
-      this.advances.set(char, adv);
+    // 1. Populate official Minecraft glyph_sizes.bin for all 65,536 Basic Multilingual Plane characters
+    const sizes = getMinecraftGlyphSizes();
+    for (let cp = 0; cp < 65536; cp++) {
+      const byte = sizes[cp];
+      if (byte !== 0) {
+        const start = (byte >> 4) & 0x0f;
+        const end = byte & 0x0f;
+        // Official Minecraft Java FontRenderer advance formula:
+        // Math.floor((end - start + 1) / 2) + 1
+        const adv = Math.floor((end - start + 1) / 2) + 1;
+        this.advances.set(String.fromCharCode(cp), adv);
+      }
     }
+
     // 2. Populate Minecraft official texture measurements from glyphs.json
+    // (ascii.png, accented.png, nonlatin_european.png)
     for (const item of glyphsData) {
       if (item.char === ' ') {
         this.advances.set(item.char, item.pixels); // space is 4
@@ -179,7 +134,13 @@ export class GlyphAtlas {
         this.advances.set(item.char, item.pixels + 1); // standard character advance is width + 1
       }
     }
-    // 3. Ensure formatting symbol and newlines always have 0 advance
+
+    // 3. Custom and calibrated symbol advances (horoscope borders, SMP custom emojis, math letters)
+    for (const [char, adv] of Object.entries(MINECRAFT_SYMBOL_ADVANCES)) {
+      this.advances.set(char, adv);
+    }
+
+    // 4. Ensure formatting symbol and newlines always have 0 advance
     this.advances.set('§', 0);
     this.advances.set('\n', 0);
     this.advances.set('\r', 0);
