@@ -331,8 +331,8 @@ export class AsciiAmbientManager {
   /* SCENE 1: THE WITCH'S STUDY (Desk, Candle, Fern & Cat)         */
   /* ------------------------------------------------------------- */
   private drawStudyScene(grid: string[][], t: number, isPortrait: boolean): void {
-    // 1. Top Ceiling: Wooden beams & hanging dried herbs
-    const beamRow = Math.min(3, Math.floor(this.rows * 0.08));
+    // 1. Top Ceiling: Wooden beams & hanging dried herbs (below toolbar on mobile)
+    const beamRow = isPortrait ? 4 : Math.min(3, Math.floor(this.rows * 0.08));
     if (beamRow >= 0 && beamRow < this.rows) {
       for (let c = 0; c < this.cols; c++) {
         grid[beamRow][c] = c % 12 === 0 ? '╦' : '═';
@@ -362,8 +362,8 @@ export class AsciiAmbientManager {
       }
     }
 
-    // 3. Desk surface across the entire bottom (clean horizontal wood desk)
-    const deskY = Math.max(this.rows - 7, Math.floor(this.rows * 0.86));
+    // 3. Desk surface across the entire bottom (placed further down on mobile)
+    const deskY = isPortrait ? (this.rows - 2) : Math.max(this.rows - 7, Math.floor(this.rows * 0.86));
     if (deskY < this.rows) {
       for (let c = 0; c < this.cols; c++) {
         grid[deskY][c] = '─';
@@ -372,16 +372,16 @@ export class AsciiAmbientManager {
 
     // 4. Stamping Fern, Candle, Cat & Potion Flask
     if (isPortrait) {
-      // Mobile Portrait: Arrange in the bottom margin below the book
-      const baseRow = Math.min(this.rows - 9, deskY - 8);
+      // Mobile Portrait: Arrange comfortably in the bottom margin below the book
+      const baseRow = deskY - 9;
 
       // Left: Glowing Candle
-      const candleCol = Math.max(1, Math.floor(this.cols * 0.04));
+      const candleCol = Math.max(1, Math.floor(this.cols * 0.03));
       this.stampCandle(grid, candleCol, baseRow, t);
 
       // Center: Potted Fern (if enough room)
-      if (this.cols >= 46) {
-        const fernCol = Math.floor(this.cols * 0.38);
+      if (this.cols >= 44) {
+        const fernCol = Math.floor(this.cols * 0.36);
         this.stampFern(grid, fernCol, baseRow + 1, t);
       }
 
@@ -537,9 +537,9 @@ export class AsciiAmbientManager {
   /* SCENE 2: THE NIGHT MEADOW (Treeline, Moon & Bioluminescence) */
   /* ------------------------------------------------------------- */
   private drawMeadowScene(grid: string[][], t: number, isPortrait: boolean): void {
-    // 1. Crescent moon in the upper sky
-    const moonCol = Math.max(4, Math.floor(this.cols * (isPortrait ? 0.82 : 0.88)));
-    const moonRow = 2;
+    // 1. Crescent moon in the upper sky (placed below toolbar on mobile)
+    const moonCol = Math.max(4, Math.floor(this.cols * (isPortrait ? 0.80 : 0.88)));
+    const moonRow = isPortrait ? 4 : 2;
     const moon = [
       ' _.._ ',
       '\' .-\'',
@@ -558,20 +558,22 @@ export class AsciiAmbientManager {
       }
     }
 
-    // 2. Stars across the sky
+    // 2. Stars across the sky (below toolbar)
     const starCount = Math.min(45, Math.floor(this.cols * 0.6));
+    const minStarRow = isPortrait ? 4 : 1;
+    const maxStarRow = Math.max(minStarRow + 2, Math.floor(this.rows * (isPortrait ? 0.35 : 0.45)));
     for (let i = 0; i < starCount; i++) {
       const seed = i * 61.3;
       const c = Math.floor(seed % this.cols);
-      const r = Math.floor((seed * 0.3) % Math.floor(this.rows * 0.45));
+      const r = minStarRow + Math.floor((seed * 0.3) % (maxStarRow - minStarRow));
       const pulse = Math.sin(t * 1.2 + seed);
       if (r < this.rows && c < this.cols && pulse > 0.4) {
         grid[r][c] = pulse > 0.85 ? '✦' : pulse > 0.6 ? '+' : '·';
       }
     }
 
-    // 3. Dense treeline across the bottom
-    const horizon = Math.min(this.rows - 5, Math.floor(this.rows * (isPortrait ? 0.82 : 0.78)));
+    // 3. Dense treeline across the bottom (further down on mobile)
+    const horizon = isPortrait ? (this.rows - 4) : Math.min(this.rows - 5, Math.floor(this.rows * 0.78));
     const treePattern = '  /\\   /\\/\\    /\\  /\\/\\/\\   /\\   /\\/\\   /\\  ';
     if (horizon >= 0 && horizon < this.rows) {
       for (let c = 0; c < this.cols; c++) {
@@ -580,7 +582,7 @@ export class AsciiAmbientManager {
     }
 
     // 4. Multiple grass & wildflower layers on the ground
-    const ground = horizon + 3;
+    const ground = isPortrait ? (this.rows - 1) : (horizon + 3);
     if (ground < this.rows) {
       for (let c = 0; c < this.cols; c++) {
         const grass = (c % 5 === 0) ? '✿' : (c % 2 === 0) ? '"' : '_';
@@ -609,27 +611,29 @@ export class AsciiAmbientManager {
   /* SCENE 3: HALLOWEEN (Ceiling Webs, Bats & Jack-o'-Lanterns)    */
   /* ------------------------------------------------------------- */
   private drawHalloweenScene(grid: string[][], t: number, isPortrait: boolean): void {
-    // 1. Sprawling webs across upper corners
+    // 1. Sprawling webs across upper corners (placed below toolbar on mobile)
+    const webStartRow = isPortrait ? 4 : 0;
     const webRows = Math.min(5, Math.floor(this.rows * 0.16));
     for (let r = 0; r < webRows; r++) {
+      const targetR = webStartRow + r;
       for (let c = 0; c < 14; c++) {
-        if (r < this.rows && c < this.cols && (c + r * 2) % 3 === 0) {
-          grid[r][c] = '\\';
+        if (targetR < this.rows && c < this.cols && (c + r * 2) % 3 === 0) {
+          grid[targetR][c] = '\\';
         }
       }
       for (let c = this.cols - 14; c < this.cols; c++) {
-        if (r < this.rows && c >= 0 && (c - r * 2) % 3 === 0) {
-          grid[r][c] = '/';
+        if (targetR < this.rows && c >= 0 && (c - r * 2) % 3 === 0) {
+          grid[targetR][c] = '/';
         }
       }
     }
 
     // 2. Spider descending on silk thread
     const spiderCol = Math.max(3, Math.floor(this.cols * (isPortrait ? 0.15 : 0.09)));
-    const dropRange = Math.max(4, Math.floor(this.rows * 0.32));
-    const spiderY = Math.floor(2 + Math.abs(Math.sin(t * 0.35)) * dropRange);
+    const dropRange = Math.max(4, Math.floor(this.rows * 0.28));
+    const spiderY = Math.floor(webStartRow + 1 + Math.abs(Math.sin(t * 0.35)) * dropRange);
 
-    for (let r = 0; r < spiderY; r++) {
+    for (let r = webStartRow; r < spiderY; r++) {
       if (r < this.rows && spiderCol < this.cols) grid[r][spiderCol] = '|';
     }
 
@@ -648,7 +652,7 @@ export class AsciiAmbientManager {
 
     // 3. Horned Owl perched on branch
     const owlCol = Math.min(this.cols - 16, Math.floor(this.cols * (isPortrait ? 0.72 : 0.82)));
-    const owlRow = Math.max(2, Math.floor(this.rows * 0.15));
+    const owlRow = isPortrait ? 4 : Math.max(2, Math.floor(this.rows * 0.15));
     const blink = Math.sin(t * 0.55) > 0.85;
     const eyes = blink ? '- -' : 'O O';
     const owl = [
@@ -667,10 +671,10 @@ export class AsciiAmbientManager {
       }
     }
 
-    // 4. Jack-o'-Lanterns along the bottom ground
-    const groundY = Math.min(this.rows - 4, Math.floor(this.rows * 0.88));
+    // 4. Jack-o'-Lanterns along the bottom ground (further down on mobile)
+    const groundY = isPortrait ? (this.rows - 3) : Math.min(this.rows - 4, Math.floor(this.rows * 0.88));
     const pumpkinCols = isPortrait 
-      ? [Math.floor(this.cols * 0.25), Math.floor(this.cols * 0.75)]
+      ? [Math.floor(this.cols * 0.22), Math.floor(this.cols * 0.78)]
       : [Math.floor(this.cols * 0.12), Math.floor(this.cols * 0.88)];
 
     const pumpkin = [
@@ -705,8 +709,8 @@ export class AsciiAmbientManager {
   /* SCENE 4: WINTER / CHRISTMAS (Dense Snowstorm & Fences)        */
   /* ------------------------------------------------------------- */
   private drawWinterScene(grid: string[][], t: number, isPortrait: boolean): void {
-    // 1. Snow clouds in the upper sky
-    const cloudRow = 1;
+    // 1. Snow clouds in the upper sky (placed below toolbar on mobile)
+    const cloudRow = isPortrait ? 4 : 1;
     for (let c = 4; c < this.cols - 12; c += 22) {
       const cloud = '.( ___ ).';
       for (let i = 0; i < cloud.length; i++) {
@@ -716,7 +720,7 @@ export class AsciiAmbientManager {
 
     // 2. Heavy snowfall across all open space
     const flakeCount = Math.min(85, Math.floor(this.cols * 0.95));
-    const ground = Math.min(this.rows - 2, Math.floor(this.rows * 0.92));
+    const ground = isPortrait ? (this.rows - 1) : Math.min(this.rows - 2, Math.floor(this.rows * 0.92));
 
     for (let i = 0; i < flakeCount; i++) {
       const seed = i * 43.1;
@@ -733,7 +737,7 @@ export class AsciiAmbientManager {
       }
     }
 
-    // 3. Wooden fence with snow caps along the bottom
+    // 3. Wooden fence with snow caps along the bottom (further down on mobile)
     const fenceRow = ground - 2;
     if (fenceRow >= 0 && fenceRow < this.rows) {
       for (let c = 0; c < this.cols; c++) {
@@ -805,9 +809,9 @@ export class AsciiAmbientManager {
   /* SCENE 6: INTRO (Celestial Moon Phases & Nebula Starlight)     */
   /* ------------------------------------------------------------- */
   private drawCelestialScene(grid: string[][], t: number, isPortrait: boolean): void {
-    // 1. Large detailed Moon
+    // 1. Large detailed Moon (placed below toolbar on mobile)
     const moonCol = Math.max(4, Math.floor(this.cols * (isPortrait ? 0.5 : 0.78)) - 4);
-    const moonRow = Math.max(1, Math.floor(this.rows * 0.08));
+    const moonRow = isPortrait ? 4 : Math.max(1, Math.floor(this.rows * 0.08));
 
     const moonPhase = Math.floor((t * 0.2) % 4);
     let moonSprite = [
@@ -845,12 +849,13 @@ export class AsciiAmbientManager {
       }
     }
 
-    // 2. Dense constellation stars and nebulas across the sky
+    // 2. Dense constellation stars and nebulas across the sky (below toolbar on mobile)
     const starCount = Math.min(60, Math.floor(this.cols * 0.8));
+    const minStarRow = isPortrait ? 4 : 1;
     for (let i = 0; i < starCount; i++) {
       const seed = i * 79.3;
       const c = Math.floor(seed % this.cols);
-      const r = Math.floor((seed * 0.45) % this.rows);
+      const r = minStarRow + Math.floor((seed * 0.45) % Math.max(1, this.rows - minStarRow));
       const pulse = Math.sin(t * 1.3 + seed);
 
       if (r < this.rows && c < this.cols && pulse > 0.35) {
@@ -859,8 +864,8 @@ export class AsciiAmbientManager {
       }
     }
 
-    // 3. Ancient Astrolabe / Planetary Alignment at bottom
-    const astrolabeRow = Math.min(this.rows - 3, Math.floor(this.rows * 0.9));
+    // 3. Ancient Astrolabe / Planetary Alignment at bottom (further down on mobile)
+    const astrolabeRow = isPortrait ? (this.rows - 2) : Math.min(this.rows - 3, Math.floor(this.rows * 0.9));
     if (astrolabeRow < this.rows) {
       const ring = '---( ( ( ⏼ ) ) )---';
       const startC = Math.max(2, Math.floor((this.cols - ring.length) / 2));

@@ -72,6 +72,26 @@ describe('AsciiAmbientManager Backdrop System', () => {
     expect(frame).not.toContain('[////]'); // No diagonal stripes
   });
 
+  it('positions top elements below the toolbar and anchors bottom elements near the bottom edge on portrait screens', () => {
+    // Simulate portrait dimensions (e.g. 50 cols, 60 rows)
+    (manager as any).cols = 50;
+    (manager as any).rows = 60;
+    manager.setIssue('issue1'); // Study scene
+    const frame = manager.renderFrame();
+    const lines = frame.split('\n');
+
+    // Rows 0-3 are clear for the toolbar
+    expect(lines[0]).not.toContain('╦');
+    expect(lines[1]).not.toContain('╦');
+    expect(lines[2]).not.toContain('╦');
+    expect(lines[3]).not.toContain('╦');
+    // Row 4 has the ceiling beam safely below the toolbar
+    expect(lines[4]).toContain('╦');
+
+    // Desk line is anchored near the true bottom at row 58 (rows - 2)
+    expect(lines[58]).toContain('─');
+  });
+
   it('toggles ambient backdrop on and off', () => {
     expect(manager.isEnabled()).toBe(true);
     const toggledOff = manager.toggle();
