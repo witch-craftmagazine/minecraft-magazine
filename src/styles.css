@@ -69,8 +69,8 @@
     --drop-zone-border: #b8a589;
     --toolbar-bg: #ede3d2;
     --toolbar-border: #cfbea5;
-    --ascii-color: rgba(75, 50, 25, 0.72);
-    --ascii-glow: rgba(120, 85, 45, 0.2);
+    --ascii-color: rgba(82, 46, 14, 0.92);
+    --ascii-glow: rgba(130, 75, 25, 0.25);
   }
 }
 
@@ -137,16 +137,98 @@ body {
   letter-spacing: 0;
   white-space: pre;
   font-variant-ligatures: none;
-  color: var(--ascii-color, rgba(215, 195, 255, 0.75));
-  text-shadow: 0 0 6px var(--ascii-glow, rgba(180, 140, 240, 0.35));
+  color: var(--ascii-color, rgba(215, 195, 255, 0.85));
+  text-shadow: 0 0 6px var(--ascii-glow, rgba(180, 140, 240, 0.40));
   transition: color 0.5s ease, opacity 0.5s ease;
   will-change: contents;
+}
+
+/* Scene Color Themes (Dark Mode - default) */
+.ascii-ambient-pre[data-scene="study"],
+.ascii-ambient-wrapper[data-scene="study"] .ascii-ambient-pre {
+  --ascii-color: rgba(255, 215, 130, 0.85);
+  --ascii-glow: rgba(240, 180, 70, 0.40);
+}
+
+.ascii-ambient-pre[data-scene="meadow"],
+.ascii-ambient-wrapper[data-scene="meadow"] .ascii-ambient-pre {
+  --ascii-color: rgba(190, 240, 145, 0.85);
+  --ascii-glow: rgba(140, 220, 90, 0.40);
+}
+
+.ascii-ambient-pre[data-scene="halloween"],
+.ascii-ambient-wrapper[data-scene="halloween"] .ascii-ambient-pre {
+  --ascii-color: rgba(255, 170, 60, 0.88);
+  --ascii-glow: rgba(230, 110, 20, 0.45);
+}
+
+.ascii-ambient-pre[data-scene="winter"],
+.ascii-ambient-wrapper[data-scene="winter"] .ascii-ambient-pre {
+  --ascii-color: rgba(215, 240, 255, 0.90);
+  --ascii-glow: rgba(180, 220, 255, 0.45);
+}
+
+.ascii-ambient-pre[data-scene="celestial"],
+.ascii-ambient-wrapper[data-scene="celestial"] .ascii-ambient-pre {
+  --ascii-color: rgba(225, 195, 255, 0.88);
+  --ascii-glow: rgba(190, 150, 250, 0.45);
+}
+
+.ascii-ambient-pre[data-scene="static"],
+.ascii-ambient-wrapper[data-scene="static"] .ascii-ambient-pre {
+  --ascii-color: rgba(255, 85, 85, 0.90);
+  --ascii-glow: rgba(255, 50, 50, 0.45);
 }
 
 @media (max-width: 680px) {
   .ascii-ambient-pre {
     font-size: 11px;
     line-height: 1.12;
+  }
+}
+
+/* Scene Color Themes (Light Mode) - High contrast, rich ink values on warm parchment */
+@media (prefers-color-scheme: light) {
+  .ascii-ambient-pre {
+    font-weight: 600;
+    color: var(--ascii-color, rgba(82, 46, 14, 0.92));
+    text-shadow: 0 0 1px var(--ascii-glow, rgba(130, 75, 25, 0.25));
+  }
+
+  .ascii-ambient-pre[data-scene="study"],
+  .ascii-ambient-wrapper[data-scene="study"] .ascii-ambient-pre {
+    --ascii-color: rgba(82, 46, 14, 0.92);
+    --ascii-glow: rgba(130, 75, 25, 0.25);
+  }
+
+  .ascii-ambient-pre[data-scene="meadow"],
+  .ascii-ambient-wrapper[data-scene="meadow"] .ascii-ambient-pre {
+    --ascii-color: rgba(22, 78, 25, 0.92);
+    --ascii-glow: rgba(45, 110, 50, 0.25);
+  }
+
+  .ascii-ambient-pre[data-scene="halloween"],
+  .ascii-ambient-wrapper[data-scene="halloween"] .ascii-ambient-pre {
+    --ascii-color: rgba(138, 45, 8, 0.94);
+    --ascii-glow: rgba(180, 65, 15, 0.25);
+  }
+
+  .ascii-ambient-pre[data-scene="winter"],
+  .ascii-ambient-wrapper[data-scene="winter"] .ascii-ambient-pre {
+    --ascii-color: rgba(20, 60, 108, 0.92);
+    --ascii-glow: rgba(50, 100, 160, 0.25);
+  }
+
+  .ascii-ambient-pre[data-scene="celestial"],
+  .ascii-ambient-wrapper[data-scene="celestial"] .ascii-ambient-pre {
+    --ascii-color: rgba(68, 28, 110, 0.92);
+    --ascii-glow: rgba(115, 60, 165, 0.25);
+  }
+
+  .ascii-ambient-pre[data-scene="static"],
+  .ascii-ambient-wrapper[data-scene="static"] .ascii-ambient-pre {
+    --ascii-color: rgba(140, 16, 16, 0.94);
+    --ascii-glow: rgba(180, 35, 35, 0.25);
   }
 }
 

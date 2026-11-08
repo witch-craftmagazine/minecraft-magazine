@@ -64,8 +64,9 @@ export class AsciiAmbientManager {
       this.container?.appendChild?.(this.preElement);
     } else {
       this.preElement = {
-        style: { setProperty: () => {}, display: 'block' },
+        style: { setProperty: () => {}, removeProperty: () => {}, display: 'block' },
         setAttribute: () => {},
+        getAttribute: () => null,
         remove: () => {},
         textContent: '',
       } as unknown as HTMLPreElement;
@@ -127,6 +128,10 @@ export class AsciiAmbientManager {
 
   public getCurrentScene(): AmbientSceneType {
     return this.currentScene;
+  }
+
+  public getPreElement(): HTMLPreElement | null {
+    return this.preElement;
   }
 
   public isEnabled(): boolean {
@@ -235,34 +240,18 @@ export class AsciiAmbientManager {
   }
 
   private updateSceneStyles(): void {
-    if (!this.preElement?.style?.setProperty) return;
-    // High-contrast thematic colors with vibrant glows
-    switch (this.currentScene) {
-      case 'static':
-        this.preElement.style.setProperty('--ascii-color', 'rgba(255, 85, 85, 0.85)');
-        this.preElement.style.setProperty('--ascii-glow', 'rgba(255, 50, 50, 0.45)');
-        break;
-      case 'halloween':
-        this.preElement.style.setProperty('--ascii-color', 'rgba(255, 170, 60, 0.85)');
-        this.preElement.style.setProperty('--ascii-glow', 'rgba(230, 110, 20, 0.40)');
-        break;
-      case 'winter':
-        this.preElement.style.setProperty('--ascii-color', 'rgba(215, 240, 255, 0.88)');
-        this.preElement.style.setProperty('--ascii-glow', 'rgba(180, 220, 255, 0.40)');
-        break;
-      case 'celestial':
-        this.preElement.style.setProperty('--ascii-color', 'rgba(225, 195, 255, 0.85)');
-        this.preElement.style.setProperty('--ascii-glow', 'rgba(190, 150, 250, 0.45)');
-        break;
-      case 'study':
-        this.preElement.style.setProperty('--ascii-color', 'rgba(255, 215, 130, 0.82)');
-        this.preElement.style.setProperty('--ascii-glow', 'rgba(240, 180, 70, 0.40)');
-        break;
-      case 'meadow':
-      default:
-        this.preElement.style.setProperty('--ascii-color', 'rgba(190, 240, 145, 0.80)');
-        this.preElement.style.setProperty('--ascii-glow', 'rgba(140, 220, 90, 0.40)');
-        break;
+    if (!this.preElement) return;
+    if (typeof this.preElement.setAttribute === 'function') {
+      this.preElement.setAttribute('data-scene', this.currentScene);
+    }
+    if (this.container && typeof this.container.setAttribute === 'function') {
+      this.container.setAttribute('data-scene', this.currentScene);
+    }
+    // Remove inline style properties so stylesheet rules for both dark mode
+    // and high-contrast light mode (@media prefers-color-scheme: light) take precedence
+    if (this.preElement.style?.removeProperty) {
+      this.preElement.style.removeProperty('--ascii-color');
+      this.preElement.style.removeProperty('--ascii-glow');
     }
   }
 
