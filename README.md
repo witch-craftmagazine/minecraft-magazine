@@ -9,7 +9,7 @@ Built using authentic Minecraft Java font metrics, genuine vanilla UI textures, 
 ## Features
 
 - **Witch-Craft Magazine Series**:
-  - Includes all 22 official issues exported directly via **Stendhal** (`intro.stendhal`, `issue1.stendhal` through `issue20.stendhal`, and `issue2023.stendhal`).
+  - Includes all 22 official issues exported directly via **Stendhal** (`intro.stendhal`, `issue1.stendhal` through `issue20.stendhal`, and `issue2023.stendhal` / Issue X).
   - Sleek top selector bar to instantly switch between issues or share direct links (`#issue=issue1`).
 - **Default Two-Page Spread Layout**:
   - Displays books as an authentic open manuscript with side-by-side pages.
