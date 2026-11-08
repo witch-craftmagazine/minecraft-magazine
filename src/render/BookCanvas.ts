@@ -423,6 +423,10 @@ export class BookCanvas {
     return this.viewMode;
   }
 
+  public getCanvas(): HTMLCanvasElement {
+    return this.canvas;
+  }
+
   public setShowPageIndicator(show: boolean): void {
     if (this.showPageIndicator !== show) {
       this.showPageIndicator = show;
