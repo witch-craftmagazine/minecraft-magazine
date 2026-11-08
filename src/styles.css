@@ -122,6 +122,21 @@ body {
   margin: 0 auto;
 }
 
+.book-blank-page-gif {
+  position: absolute;
+  image-rendering: pixelated;
+  image-rendering: -moz-crisp-edges;
+  image-rendering: crisp-edges;
+  transition: opacity 0.2s ease-in-out;
+  user-select: none;
+  -webkit-user-select: none;
+  z-index: 5;
+}
+
+.book-blank-page-gif:hover {
+  filter: drop-shadow(0 2px 8px rgba(180, 80, 220, 0.4));
+}
+
 .book-text-layer {
   position: absolute;
   top: 0;

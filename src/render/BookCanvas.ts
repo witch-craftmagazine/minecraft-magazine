@@ -70,10 +70,16 @@ export class BookCanvas {
   private hasEyeOnCurrentPage = false;
   private eyeHitBoxes: Array<{ x: number; y: number; w: number; h: number }> = [];
 
+  // StarSweetpea Blank Page Easter Egg
+  private starSweetPeaGifUrl: string;
+  private starSweetPeaImg: HTMLImageElement | null = null;
+  private gifOverlayElement: HTMLImageElement | null = null;
+
   constructor(options: BookCanvasOptions) {
     this.container = options.container;
     this.atlas = options.atlas || defaultGlyphAtlas;
     this.baseAssetPath = options.baseAssetPath || './assets';
+    this.starSweetPeaGifUrl = `${this.baseAssetPath}/textures/starsweetpea.gif`;
     this.onPageChange = options.onPageChange;
     this.showPageIndicator = options.showPageIndicator ?? false;
     this.textSelectionEnabled = options.textSelectionEnabled ?? false;
@@ -114,6 +120,25 @@ export class BookCanvas {
 
     this.stageElement.appendChild(this.canvas);
     this.stageElement.appendChild(this.textLayerElement);
+
+    if (typeof document !== 'undefined') {
+      const gifEl = document.createElement('img');
+      gifEl.className = 'book-blank-page-gif';
+      gifEl.src = this.starSweetPeaGifUrl;
+      gifEl.alt = 'StarSweetpea';
+      gifEl.title = 'StarSweetpea ~ Author of Witchcraft Magazine';
+      gifEl.style.display = 'none';
+      gifEl.style.cursor = 'pointer';
+      gifEl.style.pointerEvents = 'auto';
+      gifEl.addEventListener('click', (e) => {
+        e.stopPropagation();
+        this.triggerBlink();
+        soundManager.playWink();
+      });
+      this.gifOverlayElement = gifEl;
+      this.stageElement.appendChild(this.gifOverlayElement);
+    }
+
     this.container.appendChild(this.stageElement);
     this.setupListeners();
   }
@@ -128,6 +153,11 @@ export class BookCanvas {
         pageBackward: `${this.baseAssetPath}/packs/lithos/textures/gui/page_backward.png`,
         pageBackwardHover: `${this.baseAssetPath}/packs/lithos/textures/gui/page_backward_highlighted.png`,
       }),
+      this.loadImage(this.starSweetPeaGifUrl)
+        .then((img) => {
+          this.starSweetPeaImg = img;
+        })
+        .catch(() => {}),
     ]);
 
     this.updateCanvasDimensions();
@@ -260,6 +290,73 @@ export class BookCanvas {
     this.blinkEndTimestamp = now + 160;
     this.scheduleNextBlink(now + 160);
     this.render();
+  }
+
+  public isPageBlank(pageIndex: number): boolean {
+    const page = this.paginatedPages[pageIndex];
+    if (!page || page.length === 0) return true;
+    for (const line of page) {
+      for (const span of line.spans) {
+        if (span.text.trim().length > 0) return false;
+      }
+    }
+    return true;
+  }
+
+  public getBlankPageGifPlacement(): { x: number; y: number; w: number; h: number } | null {
+    if (!this.isWitchcraftMagazine) return null;
+    const totalPages = this.paginatedPages.length;
+    if (totalPages === 0) return null;
+
+    const w = 88;
+    const h = 100;
+    const y = 43;
+    const isDouble = this.viewMode === 'double';
+
+    if (!isDouble) {
+      // Single page view: only on the last page if that page is blank
+      if (this.currentPage === totalPages - 1 && this.isPageBlank(this.currentPage)) {
+        return { x: 49, y, w, h };
+      }
+      return null;
+    }
+
+    // Double page spread view:
+    const leftIdx = this.currentPage;
+    const rightIdx = this.currentPage + 1;
+
+    // Case 1: Left page is the last page and is blank
+    if (leftIdx === totalPages - 1 && this.isPageBlank(leftIdx)) {
+      return { x: 55, y, w, h };
+    }
+
+    // Case 2: Right page is the companion blank page (past totalPages when totalPages is odd)
+    // or right page is the last page and is blank
+    if (rightIdx >= totalPages) {
+      if (!this.isPageBlank(leftIdx)) {
+        return { x: 199, y, w, h };
+      }
+    } else if (rightIdx === totalPages - 1 && this.isPageBlank(rightIdx)) {
+      return { x: 199, y, w, h };
+    }
+
+    return null;
+  }
+
+  public updateGifOverlay(): void {
+    if (!this.gifOverlayElement) return;
+
+    const placement = this.getBlankPageGifPlacement();
+    if (!placement) {
+      this.gifOverlayElement.style.display = 'none';
+      return;
+    }
+
+    this.gifOverlayElement.style.display = 'block';
+    this.gifOverlayElement.style.left = `${placement.x * this.scale}px`;
+    this.gifOverlayElement.style.top = `${placement.y * this.scale}px`;
+    this.gifOverlayElement.style.width = `${placement.w * this.scale}px`;
+    this.gifOverlayElement.style.height = `${placement.h * this.scale}px`;
   }
 
   public recalculatePages(): void {
@@ -444,6 +541,7 @@ export class BookCanvas {
 
     this.ctx.imageSmoothingEnabled = false;
     this.updateTextLayer();
+    this.updateGifOverlay();
   }
 
   public render(): void {
@@ -511,8 +609,21 @@ export class BookCanvas {
       }
     }
 
+    // Draw StarSweetpea blank page easter egg on canvas if active
+    const gifPlacement = this.getBlankPageGifPlacement();
+    if (gifPlacement && this.starSweetPeaImg) {
+      this.ctx.drawImage(
+        this.starSweetPeaImg,
+        gifPlacement.x,
+        gifPlacement.y,
+        gifPlacement.w,
+        gifPlacement.h
+      );
+    }
+
     this.ctx.restore();
     this.updateTextLayer();
+    this.updateGifOverlay();
   }
 
   /**
@@ -1142,6 +1253,9 @@ export class BookCanvas {
   public destroy(): void {
     if (this.animFrameId !== null) {
       cancelAnimationFrame(this.animFrameId);
+    }
+    if (this.gifOverlayElement) {
+      this.gifOverlayElement.remove();
     }
     this.canvas.remove();
   }
