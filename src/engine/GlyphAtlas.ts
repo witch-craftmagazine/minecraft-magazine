@@ -145,6 +145,13 @@ export const MINECRAFT_SYMBOL_ADVANCES: Record<string, number> = {
   '™': 9,
 };
 
+// Server resource pack bitmap overrides to explicitly ignore.
+// (e.g. Craftadia later mapped custom weapon textures to standard Unicode stars like ✯ (U+272F),
+// which broke pre-existing written books that used the star character).
+export const IGNORED_BITMAP_CHARS = new Set([
+  '✯', // U+272F: Craftadia noxium weapon override
+]);
+
 export class GlyphAtlas {
   private advances: Map<string, number> = new Map();
   private glyphMap: Map<string, GlyphMapEntry> = new Map();
@@ -546,7 +553,7 @@ export class GlyphAtlas {
             const rowStr = provider.chars[r];
             for (let c = 0; c < rowStr.length; c++) {
               const char = rowStr[c];
-              if (!char || char === '\u0000') continue;
+              if (!char || char === '\u0000' || IGNORED_BITMAP_CHARS.has(char)) continue;
 
               let actualWidth = cellW;
               if (imgData) {

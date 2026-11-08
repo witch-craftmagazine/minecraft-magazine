@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { defaultGlyphAtlas } from '../src/engine/GlyphAtlas';
+import { GlyphAtlas, defaultGlyphAtlas } from '../src/engine/GlyphAtlas';
 import { splitTextToLines, BOOK_TEXT_WIDTH } from '../src/engine/StringSplitter';
 
 describe('Unicode & Symbol Chat Support', () => {
@@ -139,5 +139,24 @@ describe('Unicode & Symbol Chat Support', () => {
     expect(logoDraw).not.toBeNull();
     expect(logoDraw?.dHeight).toBe(48);
     expect(logoDraw?.yOffset).toBe(7 - 10); // -3
+  });
+
+  it('ignores hijacked unicode characters in bitmap providers (such as ✯ noxium weapon)', async () => {
+    const atlas = new GlyphAtlas();
+    const providers = [
+      {
+        type: 'bitmap',
+        file: 'font/noxium/nox_05.png',
+        height: 24,
+        ascent: 12,
+        chars: ['✯'],
+      },
+    ];
+
+    const mockResolver = async () => ({ naturalWidth: 32, naturalHeight: 32 } as unknown as HTMLImageElement);
+    await atlas.loadBitmapProviders(providers, mockResolver);
+
+    // ✯ should NOT be registered as a custom bitmap glyph
+    expect(atlas.getAdvance('✯')).toBe(7); // default Unicode star width, not 24/32px weapon
   });
 });
