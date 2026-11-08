@@ -108,8 +108,6 @@ export class BookCanvas {
     this.canvas.style.imageRendering = 'pixelated';
     this.canvas.style.display = 'block';
     this.canvas.style.margin = '0 auto';
-    this.canvas.style.boxShadow = '0 12px 35px rgba(0, 0, 0, 0.9)';
-    this.canvas.style.borderRadius = '3px';
     this.canvas.style.maxWidth = '96vw';
     this.canvas.style.maxHeight = 'calc(100vh - 70px)';
     this.canvas.style.objectFit = 'contain';
