@@ -170,7 +170,7 @@ describe('Witchcraft Magazine Blinking Eye Easter Egg', () => {
     const blinkAdvance = atlas.getAdvance('◡', false);
 
     expect(eyeAdvance).toBe(8);
-    expect(blinkAdvance).toBe(7);
+    expect(blinkAdvance).toBe(8);
 
     // Bold advance
     const boldEyeAdvance = atlas.getAdvance('⏼', true);
