@@ -3,13 +3,16 @@
  * 
  * Features:
  * - Strictly stops at the book's boundary (never goes under or behind the book).
- * - Low contrast, tranquil, non-distracting visual styling.
+ * - High-contrast, vibrant, and atmospheric colors with text-shadow glow.
+ * - Mobile responsive: adaptively fills top and bottom margins on portrait screens
+ *   and side flanks on widescreen displays.
  * - Slow, hypnotic animation (~8-10 FPS).
  * - Dynamic scene selection:
  *   - Standard issues: Randomizes on load between "Witch's Study" (Candle & Cat) and "Night Meadow" (Fireflies).
- *   - Holiday issues: "Halloween" (Spider & Owl) for Issues 6, 11, 17; "Winter" (Snowfall) for Issues 7, 12, 19.
- *   - Issue X: Corrupted "Static" (TV Static / Glitch scanlines).
- *   - Intro: "Celestial" (Moon Phases & Starlight).
+ *   - Holiday issues: "Halloween" (Spider, Owl, Jack-o'-Lanterns) for Issues 6, 11, 17;
+ *     "Winter" (Snowfall & Frost) for Issues 7, 12, 19.
+ *   - Issue X: Corrupted "Static" (CRT TV Static, glitch scanlines, corrupted mantras).
+ *   - Intro: "Celestial" (Moon Phases, Constellations & Starlight).
  */
 
 export type AmbientSceneType = 'study' | 'meadow' | 'halloween' | 'winter' | 'static' | 'celestial';
@@ -70,6 +73,7 @@ export class AsciiAmbientManager {
 
     this.measureCellDimensions();
     this.updateGridSize();
+    this.updateSceneStyles();
 
     // Listeners for window resize and visibility
     if (typeof window !== 'undefined' && typeof window.addEventListener === 'function') {
@@ -120,16 +124,22 @@ export class AsciiAmbientManager {
   public toggle(): boolean {
     this.enabled = !this.enabled;
     try {
-      localStorage.setItem('witchcraft_ascii_ambient', String(this.enabled));
+      if (typeof localStorage !== 'undefined') {
+        localStorage.setItem('witchcraft_ascii_ambient', String(this.enabled));
+      }
     } catch {}
 
     if (this.enabled) {
       this.start();
-      this.preElement.style.display = 'block';
+      if (this.preElement?.style) {
+        this.preElement.style.display = 'block';
+      }
     } else {
       this.stop();
-      this.preElement.style.display = 'none';
-      this.preElement.textContent = '';
+      if (this.preElement?.style) {
+        this.preElement.style.display = 'none';
+        this.preElement.textContent = '';
+      }
     }
     return this.enabled;
   }
@@ -184,7 +194,7 @@ export class AsciiAmbientManager {
     try {
       const testSpan = document.createElement('span');
       testSpan.style.fontFamily = 'ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace';
-      testSpan.style.fontSize = '11px';
+      testSpan.style.fontSize = '12px';
       testSpan.style.lineHeight = '1.15';
       testSpan.style.position = 'absolute';
       testSpan.style.visibility = 'hidden';
@@ -214,26 +224,32 @@ export class AsciiAmbientManager {
 
   private updateSceneStyles(): void {
     if (!this.preElement?.style?.setProperty) return;
-    // Subtle thematic color shifting
+    // High-contrast thematic colors with vibrant glows
     switch (this.currentScene) {
       case 'static':
-        this.preElement.style.setProperty('--ascii-color', 'rgba(230, 80, 80, 0.26)');
+        this.preElement.style.setProperty('--ascii-color', 'rgba(255, 85, 85, 0.85)');
+        this.preElement.style.setProperty('--ascii-glow', 'rgba(255, 50, 50, 0.45)');
         break;
       case 'halloween':
-        this.preElement.style.setProperty('--ascii-color', 'rgba(215, 140, 50, 0.24)');
+        this.preElement.style.setProperty('--ascii-color', 'rgba(255, 170, 60, 0.85)');
+        this.preElement.style.setProperty('--ascii-glow', 'rgba(230, 110, 20, 0.40)');
         break;
       case 'winter':
-        this.preElement.style.setProperty('--ascii-color', 'rgba(160, 205, 245, 0.25)');
+        this.preElement.style.setProperty('--ascii-color', 'rgba(215, 240, 255, 0.88)');
+        this.preElement.style.setProperty('--ascii-glow', 'rgba(180, 220, 255, 0.40)');
         break;
       case 'celestial':
-        this.preElement.style.setProperty('--ascii-color', 'rgba(195, 165, 235, 0.24)');
+        this.preElement.style.setProperty('--ascii-color', 'rgba(225, 195, 255, 0.85)');
+        this.preElement.style.setProperty('--ascii-glow', 'rgba(190, 150, 250, 0.45)');
         break;
       case 'study':
-        this.preElement.style.setProperty('--ascii-color', 'rgba(215, 175, 110, 0.22)');
+        this.preElement.style.setProperty('--ascii-color', 'rgba(255, 215, 130, 0.82)');
+        this.preElement.style.setProperty('--ascii-glow', 'rgba(240, 180, 70, 0.40)');
         break;
       case 'meadow':
       default:
-        this.preElement.style.setProperty('--ascii-color', 'rgba(155, 140, 195, 0.22)');
+        this.preElement.style.setProperty('--ascii-color', 'rgba(190, 240, 145, 0.80)');
+        this.preElement.style.setProperty('--ascii-glow', 'rgba(140, 220, 90, 0.40)');
         break;
     }
   }
@@ -244,7 +260,6 @@ export class AsciiAmbientManager {
     const delta = timestamp - this.lastFrameTimestamp;
     if (delta >= this.frameDurationMs) {
       this.lastFrameTimestamp = timestamp - (delta % this.frameDurationMs);
-      // Advance simulation time slowly (0.4x real time for calm, tranquil motion)
       this.simTime += 0.05;
       this.renderFrame();
     }
@@ -261,26 +276,27 @@ export class AsciiAmbientManager {
    */
   public renderFrame(): string {
     const grid: string[][] = Array.from({ length: this.rows }, () => new Array<string>(this.cols).fill(' '));
+    const isPortrait = this.cols < 72 || this.cols < this.rows;
 
-    // 1. Generate scene content into grid
+    // 1. Generate expansive scene content into grid
     switch (this.currentScene) {
       case 'study':
-        this.drawStudyScene(grid, this.simTime);
+        this.drawStudyScene(grid, this.simTime, isPortrait);
         break;
       case 'meadow':
-        this.drawMeadowScene(grid, this.simTime);
+        this.drawMeadowScene(grid, this.simTime, isPortrait);
         break;
       case 'halloween':
-        this.drawHalloweenScene(grid, this.simTime);
+        this.drawHalloweenScene(grid, this.simTime, isPortrait);
         break;
       case 'winter':
-        this.drawWinterScene(grid, this.simTime);
+        this.drawWinterScene(grid, this.simTime, isPortrait);
         break;
       case 'static':
         this.drawStaticScene(grid, this.simTime);
         break;
       case 'celestial':
-        this.drawCelestialScene(grid, this.simTime);
+        this.drawCelestialScene(grid, this.simTime, isPortrait);
         break;
     }
 
@@ -311,7 +327,7 @@ export class AsciiAmbientManager {
       return;
     }
 
-    // Add 16px buffer margin around the book boundary
+    // 16px buffer margin around the book boundary to keep book edges cleanly separated
     const padX = 16;
     const padY = 16;
     const minX = bookRect.left - padX;
@@ -334,30 +350,67 @@ export class AsciiAmbientManager {
   }
 
   /* ------------------------------------------------------------- */
-  /* SCENE 1: THE WITCH'S STUDY (Candle on left, Sleeping Cat on right) */
+  /* SCENE 1: THE WITCH'S STUDY (Expansive Desk & Ceiling Beams)   */
   /* ------------------------------------------------------------- */
-  private drawStudyScene(grid: string[][], t: number): void {
-    // Left Desk: Candle flame flickering
-    const candleCol = Math.max(2, Math.floor(this.cols * 0.08));
-    const candleRow = Math.max(5, Math.floor(this.rows * 0.55));
-    this.stampCandle(grid, candleCol, candleRow, t);
+  private drawStudyScene(grid: string[][], t: number, isPortrait: boolean): void {
+    // 1. Top Ceiling: Wooden beams & hanging dried herbs
+    const beamRow = Math.min(3, Math.floor(this.rows * 0.08));
+    if (beamRow >= 0 && beamRow < this.rows) {
+      for (let c = 0; c < this.cols; c++) {
+        grid[beamRow][c] = c % 12 === 0 ? '╦' : '═';
+      }
+      if (beamRow + 1 < this.rows) {
+        for (let c = 0; c < this.cols; c += 12) {
+          if (c + 6 < this.cols) {
+            grid[beamRow + 1][c + 6] = '|';
+            if (beamRow + 2 < this.rows) {
+              const herb = c % 24 === 0 ? '✿' : '✦';
+              grid[beamRow + 2][c + 6] = herb;
+            }
+          }
+        }
+      }
+    }
 
-    // Right Desk: Sleeping Familiar (Cat breathing softly)
-    const catCol = Math.min(this.cols - 35, Math.floor(this.cols * 0.72));
-    const catRow = Math.max(5, Math.floor(this.rows * 0.65));
-    this.stampCat(grid, catCol, catRow, t);
+    // 2. Bottom Desk Surface across the entire width
+    const deskY = Math.max(this.rows - 8, Math.floor(this.rows * 0.84));
+    if (deskY < this.rows) {
+      for (let c = 0; c < this.cols; c++) {
+        grid[deskY][c] = '═';
+      }
+    }
 
-    // Subtle desk surface at bottom
-    const deskY = Math.min(this.rows - 2, Math.floor(this.rows * 0.88));
-    if (deskY >= 0 && deskY < this.rows) {
-      for (let c = 0; c < this.cols; c += 3) {
-        if (c < this.cols) grid[deskY][c] = '─';
+    // Placement of Candle & Cat adaptively for mobile or desktop
+    if (isPortrait) {
+      // Mobile Portrait: Place candle and sleeping cat in the generous bottom margin below the book
+      const baseRow = Math.min(this.rows - 7, deskY - 6);
+      const candleCol = Math.max(2, Math.floor(this.cols * 0.12));
+      const catCol = Math.min(this.cols - 28, Math.floor(this.cols * 0.52));
+      this.stampCandle(grid, candleCol, baseRow, t);
+      this.stampCat(grid, catCol, baseRow + 1, t);
+    } else {
+      // Desktop Widescreen: Candle on the left flank, Cat on the right flank
+      const candleCol = Math.max(3, Math.floor(this.cols * 0.06));
+      const candleRow = Math.max(4, Math.floor(this.rows * 0.45));
+      this.stampCandle(grid, candleCol, candleRow, t);
+
+      const catCol = Math.min(this.cols - 32, Math.floor(this.cols * 0.74));
+      const catRow = Math.max(4, Math.floor(this.rows * 0.55));
+      this.stampCat(grid, catCol, catRow, t);
+
+      // Book shelves on the far sides
+      for (let r = 5; r < deskY; r += 4) {
+        const shelf = '[|||||] [////]';
+        for (let i = 0; i < shelf.length; i++) {
+          if (candleCol + i < this.cols) grid[r][candleCol + i] = shelf[i];
+          if (catCol + i < this.cols) grid[r][catCol + i] = shelf[i];
+        }
       }
     }
   }
 
   private stampCandle(grid: string[][], col: number, row: number, t: number): void {
-    const flameFlicker = Math.sin(t * 2.5) > 0.2 ? ')' : Math.sin(t * 3.1) < -0.2 ? '(' : '|';
+    const flameFlicker = Math.sin(t * 2.8) > 0.2 ? ')' : Math.sin(t * 3.3) < -0.2 ? '(' : '|';
     const halo = Math.sin(t * 1.8) > 0 ? '*' : '·';
 
     const sprite = [
@@ -387,7 +440,6 @@ export class AsciiAmbientManager {
   }
 
   private stampCat(grid: string[][], col: number, row: number, t: number): void {
-    // Slow breathing cycle (in and out)
     const breath = Math.sin(t * 0.9) > 0;
     const earFlicker = Math.sin(t * 0.4) > 0.8;
     const zFloat = Math.floor((t * 0.5) % 3);
@@ -429,11 +481,44 @@ export class AsciiAmbientManager {
   }
 
   /* ------------------------------------------------------------- */
-  /* SCENE 2: THE NIGHT MEADOW (Treeline & Fireflies)             */
+  /* SCENE 2: THE NIGHT MEADOW (Treeline, Moon & Bioluminescence) */
   /* ------------------------------------------------------------- */
-  private drawMeadowScene(grid: string[][], t: number): void {
-    // 1. Distant treeline along lower horizon
-    const horizon = Math.min(this.rows - 4, Math.floor(this.rows * 0.78));
+  private drawMeadowScene(grid: string[][], t: number, isPortrait: boolean): void {
+    // 1. Crescent moon in the upper sky
+    const moonCol = Math.max(4, Math.floor(this.cols * (isPortrait ? 0.82 : 0.88)));
+    const moonRow = 2;
+    const moon = [
+      ' _.._ ',
+      '\' .-\'',
+      '/ /  ',
+      '| |  ',
+      '\\ \\  ',
+      ' `._`',
+    ];
+    for (let r = 0; r < moon.length; r++) {
+      if (moonRow + r < this.rows) {
+        for (let c = 0; c < moon[r].length; c++) {
+          if (moonCol + c < this.cols && moon[r][c] !== ' ') {
+            grid[moonRow + r][moonCol + c] = moon[r][c];
+          }
+        }
+      }
+    }
+
+    // 2. Stars across the sky
+    const starCount = Math.min(45, Math.floor(this.cols * 0.6));
+    for (let i = 0; i < starCount; i++) {
+      const seed = i * 61.3;
+      const c = Math.floor(seed % this.cols);
+      const r = Math.floor((seed * 0.3) % Math.floor(this.rows * 0.45));
+      const pulse = Math.sin(t * 1.2 + seed);
+      if (r < this.rows && c < this.cols && pulse > 0.4) {
+        grid[r][c] = pulse > 0.85 ? '✦' : pulse > 0.6 ? '+' : '·';
+      }
+    }
+
+    // 3. Dense treeline across the bottom
+    const horizon = Math.min(this.rows - 5, Math.floor(this.rows * (isPortrait ? 0.82 : 0.78)));
     const treePattern = '  /\\   /\\/\\    /\\  /\\/\\/\\   /\\   /\\/\\   /\\  ';
     if (horizon >= 0 && horizon < this.rows) {
       for (let c = 0; c < this.cols; c++) {
@@ -441,48 +526,60 @@ export class AsciiAmbientManager {
       }
     }
 
-    // Ground line
-    const ground = horizon + 2;
+    // 4. Multiple grass & wildflower layers on the ground
+    const ground = horizon + 3;
     if (ground < this.rows) {
       for (let c = 0; c < this.cols; c++) {
-        grid[ground][c] = c % 4 === 0 ? '"' : '_';
+        const grass = (c % 5 === 0) ? '✿' : (c % 2 === 0) ? '"' : '_';
+        grid[ground][c] = grass;
       }
     }
 
-    // 2. Slow drifting fireflies in peripheral space
-    const count = Math.min(30, Math.floor(this.cols * 0.4));
-    for (let i = 0; i < count; i++) {
-      const seed = i * 137.5;
-      const speedX = 0.3 + (i % 5) * 0.1;
-      const speedY = 0.2 + (i % 4) * 0.08;
+    // 5. Fireflies dancing across the entire periphery
+    const flyCount = Math.min(50, Math.floor(this.cols * 0.65));
+    for (let i = 0; i < flyCount; i++) {
+      const seed = i * 113.7;
+      const speedX = 0.2 + (i % 5) * 0.08;
+      const speedY = 0.15 + (i % 4) * 0.06;
 
       const x = Math.floor(((seed + t * speedX * 8) % this.cols + this.cols) % this.cols);
-      const y = Math.floor((Math.sin(t * speedY + seed) * 0.35 + 0.5) * horizon);
+      const y = Math.floor((Math.sin(t * speedY + seed) * 0.45 + 0.5) * this.rows);
 
-      const pulse = Math.sin(t * 1.5 + seed);
-      if (pulse > 0.3 && y >= 0 && y < this.rows && x >= 0 && x < this.cols) {
-        grid[y][x] = pulse > 0.85 ? '*' : pulse > 0.6 ? '+' : '·';
+      const pulse = Math.sin(t * 1.6 + seed);
+      if (pulse > 0.2 && y >= 0 && y < this.rows && x >= 0 && x < this.cols) {
+        grid[y][x] = pulse > 0.8 ? '*' : pulse > 0.5 ? '+' : '·';
       }
     }
   }
 
   /* ------------------------------------------------------------- */
-  /* SCENE 3: HALLOWEEN (Spider descending & Horned Owl)           */
+  /* SCENE 3: HALLOWEEN (Ceiling Webs, Bats & Jack-o'-Lanterns)    */
   /* ------------------------------------------------------------- */
-  private drawHalloweenScene(grid: string[][], t: number): void {
-    // Left: Spider dropping on silk and climbing
-    const spiderCol = Math.max(3, Math.floor(this.cols * 0.07));
-    const dropRange = Math.max(4, Math.floor(this.rows * 0.35));
-    const spiderY = Math.floor(2 + Math.abs(Math.sin(t * 0.35)) * dropRange);
-
-    // Silk thread
-    for (let r = 0; r < spiderY; r++) {
-      if (r < this.rows && spiderCol < this.cols) {
-        grid[r][spiderCol] = '|';
+  private drawHalloweenScene(grid: string[][], t: number, isPortrait: boolean): void {
+    // 1. Sprawling webs across upper corners
+    const webRows = Math.min(5, Math.floor(this.rows * 0.16));
+    for (let r = 0; r < webRows; r++) {
+      for (let c = 0; c < 14; c++) {
+        if (r < this.rows && c < this.cols && (c + r * 2) % 3 === 0) {
+          grid[r][c] = '\\';
+        }
+      }
+      for (let c = this.cols - 14; c < this.cols; c++) {
+        if (r < this.rows && c >= 0 && (c - r * 2) % 3 === 0) {
+          grid[r][c] = '/';
+        }
       }
     }
 
-    // Spider body
+    // 2. Spider descending on silk thread
+    const spiderCol = Math.max(3, Math.floor(this.cols * (isPortrait ? 0.15 : 0.09)));
+    const dropRange = Math.max(4, Math.floor(this.rows * 0.32));
+    const spiderY = Math.floor(2 + Math.abs(Math.sin(t * 0.35)) * dropRange);
+
+    for (let r = 0; r < spiderY; r++) {
+      if (r < this.rows && spiderCol < this.cols) grid[r][spiderCol] = '|';
+    }
+
     if (spiderY < this.rows - 2 && spiderCol - 2 >= 0 && spiderCol + 2 < this.cols) {
       const legPose = Math.sin(t * 1.2) > 0 ? '/' : '\\';
       grid[spiderY][spiderCol - 2] = legPose;
@@ -496,27 +593,121 @@ export class AsciiAmbientManager {
       }
     }
 
-    // Right: Horned Owl on tree branch
-    const owlCol = Math.min(this.cols - 16, Math.floor(this.cols * 0.82));
-    const owlRow = Math.max(3, Math.floor(this.rows * 0.2));
-    const blink = Math.sin(t * 0.6) > 0.85;
+    // 3. Horned Owl perched on branch
+    const owlCol = Math.min(this.cols - 16, Math.floor(this.cols * (isPortrait ? 0.72 : 0.82)));
+    const owlRow = Math.max(2, Math.floor(this.rows * 0.15));
+    const blink = Math.sin(t * 0.55) > 0.85;
     const eyes = blink ? '- -' : 'O O';
-
-    const owlSprite = [
+    const owl = [
       ' ,___, ',
       ` [${eyes}] `,
       ' /)__) ',
       ' -"--"-',
     ];
+    for (let r = 0; r < owl.length; r++) {
+      if (owlRow + r < this.rows) {
+        for (let c = 0; c < owl[r].length; c++) {
+          if (owlCol + c < this.cols && owl[r][c] !== ' ') {
+            grid[owlRow + r][owlCol + c] = owl[r][c];
+          }
+        }
+      }
+    }
 
-    for (let r = 0; r < owlSprite.length; r++) {
-      const tr = owlRow + r;
-      if (tr >= 0 && tr < this.rows) {
-        const line = owlSprite[r];
-        for (let c = 0; c < line.length; c++) {
-          const tc = owlCol + c;
-          if (tc >= 0 && tc < this.cols && line[c] !== ' ') {
-            grid[tr][tc] = line[c];
+    // 4. Jack-o'-Lanterns along the bottom ground
+    const groundY = Math.min(this.rows - 4, Math.floor(this.rows * 0.88));
+    const pumpkinCols = isPortrait 
+      ? [Math.floor(this.cols * 0.25), Math.floor(this.cols * 0.75)]
+      : [Math.floor(this.cols * 0.12), Math.floor(this.cols * 0.88)];
+
+    const pumpkin = [
+      '  _/_  ',
+      ' (O_O) ',
+      '  `=\'  ',
+    ];
+
+    for (const pCol of pumpkinCols) {
+      for (let r = 0; r < pumpkin.length; r++) {
+        if (groundY + r < this.rows) {
+          for (let c = 0; c < pumpkin[r].length; c++) {
+            if (pCol + c < this.cols && pumpkin[r][c] !== ' ') {
+              grid[groundY + r][pCol + c] = pumpkin[r][c];
+            }
+          }
+        }
+      }
+    }
+
+    // Bats in flight across open space
+    const batX = Math.floor(((t * 12) % this.cols + this.cols) % this.cols);
+    const batY = Math.floor(Math.sin(t * 0.8) * 3 + this.rows * 0.28);
+    if (batY >= 0 && batY < this.rows && batX + 4 < this.cols) {
+      grid[batY][batX] = '^';
+      grid[batY][batX + 1] = 'v';
+      grid[batY][batX + 2] = '^';
+    }
+  }
+
+  /* ------------------------------------------------------------- */
+  /* SCENE 4: WINTER / CHRISTMAS (Dense Snowstorm & Fences)        */
+  /* ------------------------------------------------------------- */
+  private drawWinterScene(grid: string[][], t: number, isPortrait: boolean): void {
+    // 1. Snow clouds in the upper sky
+    const cloudRow = 1;
+    for (let c = 4; c < this.cols - 12; c += 22) {
+      const cloud = '.( ___ ).';
+      for (let i = 0; i < cloud.length; i++) {
+        if (c + i < this.cols && cloudRow < this.rows) grid[cloudRow][c + i] = cloud[i];
+      }
+    }
+
+    // 2. Heavy snowfall across all open space
+    const flakeCount = Math.min(85, Math.floor(this.cols * 0.95));
+    const ground = Math.min(this.rows - 2, Math.floor(this.rows * 0.92));
+
+    for (let i = 0; i < flakeCount; i++) {
+      const seed = i * 43.1;
+      const speedY = 0.5 + (i % 3) * 0.25;
+      const sway = Math.sin(t * 0.9 + seed) * 2.2;
+
+      const rawY = (seed + t * speedY * 6) % ground;
+      const r = Math.floor(rawY);
+      const c = Math.floor(((seed * 2.4 + sway) % this.cols + this.cols) % this.cols);
+
+      if (r >= 0 && r < ground && c >= 0 && c < this.cols) {
+        const glyph = (i % 5 === 0) ? '❅' : (i % 3 === 0) ? '*' : (i % 2 === 0) ? '+' : '·';
+        grid[r][c] = glyph;
+      }
+    }
+
+    // 3. Wooden fence with snow caps along the bottom
+    const fenceRow = ground - 2;
+    if (fenceRow >= 0 && fenceRow < this.rows) {
+      for (let c = 0; c < this.cols; c++) {
+        if (c % 8 === 0) {
+          if (fenceRow - 1 >= 0) grid[fenceRow - 1][c] = '▔'; // snow cap on post
+          grid[fenceRow][c] = '|';
+          if (fenceRow + 1 < this.rows) grid[fenceRow + 1][c] = '|';
+        } else {
+          grid[fenceRow][c] = '─';
+        }
+      }
+    }
+
+    // 4. Little snowman in open bottom area
+    const snowmanCol = Math.max(2, Math.floor(this.cols * (isPortrait ? 0.75 : 0.85)));
+    const snowmanRow = fenceRow - 3;
+    if (snowmanRow >= 0 && snowmanRow + 3 < this.rows && snowmanCol + 7 < this.cols) {
+      const snowman = [
+        ' _[===]_ ',
+        '  (\'.\')  ',
+        '  ( : )  ',
+        ' (  :  ) ',
+      ];
+      for (let r = 0; r < snowman.length; r++) {
+        for (let c = 0; c < snowman[r].length; c++) {
+          if (snowman[r][c] !== ' ') {
+            grid[snowmanRow + r][snowmanCol + c] = snowman[r][c];
           }
         }
       }
@@ -524,48 +715,17 @@ export class AsciiAmbientManager {
   }
 
   /* ------------------------------------------------------------- */
-  /* SCENE 4: WINTER / CHRISTMAS (Snowfall Drifting)              */
-  /* ------------------------------------------------------------- */
-  private drawWinterScene(grid: string[][], t: number): void {
-    const flakeCount = Math.min(60, Math.floor(this.cols * 0.7));
-    const ground = Math.min(this.rows - 1, Math.floor(this.rows * 0.92));
-
-    for (let i = 0; i < flakeCount; i++) {
-      const seed = i * 47.1;
-      const speedY = 0.4 + (i % 3) * 0.2;
-      const sway = Math.sin(t * 0.8 + seed) * 1.8;
-
-      const rawY = (seed + t * speedY * 6) % ground;
-      const r = Math.floor(rawY);
-      const c = Math.floor(((seed * 2.3 + sway) % this.cols + this.cols) % this.cols);
-
-      if (r >= 0 && r < ground && c >= 0 && c < this.cols) {
-        const glyph = (i % 5 === 0) ? '*' : (i % 2 === 0) ? '+' : '·';
-        grid[r][c] = glyph;
-      }
-    }
-
-    // Snow drift on the ground
-    if (ground < this.rows) {
-      for (let c = 0; c < this.cols; c++) {
-        grid[ground][c] = (c % 2 === 0) ? '─' : ' ';
-      }
-    }
-  }
-
-  /* ------------------------------------------------------------- */
-  /* SCENE 5: ISSUE X (Corrupted TV-Static & Scanline Glitch)       */
+  /* SCENE 5: ISSUE X (Corrupted CRT Television Static & Glitch)   */
   /* ------------------------------------------------------------- */
   private drawStaticScene(grid: string[][], t: number): void {
-    const chars = ' .:+░▒▓#X%';
-    const scanline = Math.floor((t * 4) % this.rows);
+    const chars = ' .:+░▒▓█#X%§Ӝ';
+    const scanline = Math.floor((t * 5) % this.rows);
 
     for (let r = 0; r < this.rows; r++) {
       const isScan = Math.abs(r - scanline) <= 1;
-      const density = isScan ? 0.35 : 0.08;
+      const density = isScan ? 0.45 : 0.12;
 
       for (let c = 0; c < this.cols; c += 2) {
-        // Fast pseudorandom noise
         const n = Math.sin(r * 12.9898 + c * 78.233 + t * 50);
         if (Math.abs(n) > 1 - density) {
           const chIdx = Math.floor(Math.abs(n) * chars.length) % chars.length;
@@ -573,65 +733,86 @@ export class AsciiAmbientManager {
         }
       }
     }
+
+    // Intermittent corrupted lore fragments flashing in the static
+    const glitches = ['403 FORBIDDEN', 'WAKE UP', 'CORRUPTED', '{THIS BOOK SHOULD NOT EXIST}', 'ɨȶ'];
+    const glitchIdx = Math.floor(t * 0.8) % glitches.length;
+    const gText = glitches[glitchIdx];
+    const gRow = Math.floor(((t * 3) % (this.rows - 4)) + 2);
+    const gCol = Math.floor(((t * 7) % Math.max(1, this.cols - gText.length)));
+
+    if (Math.sin(t * 2.5) > 0.4 && gRow < this.rows) {
+      for (let i = 0; i < gText.length; i++) {
+        if (gCol + i < this.cols) grid[gRow][gCol + i] = gText[i];
+      }
+    }
   }
 
   /* ------------------------------------------------------------- */
-  /* SCENE 6: INTRO (Celestial Moon Phases & Starlight)            */
+  /* SCENE 6: INTRO (Celestial Moon Phases & Nebula Starlight)     */
   /* ------------------------------------------------------------- */
-  private drawCelestialScene(grid: string[][], t: number): void {
-    // Upper Center/Right: Waxing/Waning Moon
-    const moonCol = Math.max(5, Math.floor(this.cols * 0.78));
-    const moonRow = Math.max(2, Math.floor(this.rows * 0.12));
+  private drawCelestialScene(grid: string[][], t: number, isPortrait: boolean): void {
+    // 1. Large detailed Moon
+    const moonCol = Math.max(4, Math.floor(this.cols * (isPortrait ? 0.5 : 0.78)) - 4);
+    const moonRow = Math.max(1, Math.floor(this.rows * 0.08));
 
     const moonPhase = Math.floor((t * 0.2) % 4);
     let moonSprite = [
-      '  .--.  ',
-      ' (    ) ',
-      '  `--\'  ',
+      '   .----.   ',
+      '  /  ..  \\  ',
+      ' |  (  )  | ',
+      '  \\  \'\'  /  ',
+      '   `----\'   ',
     ];
     if (moonPhase === 0) {
       moonSprite = [
-        '  .--.  ',
-        ' ( (   )',
-        '  `--\'  ',
+        '   .----.   ',
+        '  / (    \\  ',
+        ' | (      | ',
+        '  \\ (    /  ',
+        '   `----\'   ',
       ];
     } else if (moonPhase === 1) {
       moonSprite = [
-        '  .--.  ',
-        ' ( |   )',
-        '  `--\'  ',
-      ];
-    } else if (moonPhase === 2) {
-      moonSprite = [
-        '  .--.  ',
-        ' (   ) )',
-        '  `--\'  ',
+        '   .----.   ',
+        '  / |    \\  ',
+        ' |  |     | ',
+        '  \\ |    /  ',
+        '   `----\'   ',
       ];
     }
 
     for (let r = 0; r < moonSprite.length; r++) {
-      const tr = moonRow + r;
-      if (tr >= 0 && tr < this.rows) {
-        const line = moonSprite[r];
-        for (let c = 0; c < line.length; c++) {
-          const tc = moonCol + c;
-          if (tc >= 0 && tc < this.cols && line[c] !== ' ') {
-            grid[tr][tc] = line[c];
+      if (moonRow + r < this.rows) {
+        for (let c = 0; c < moonSprite[r].length; c++) {
+          if (moonCol + c < this.cols && moonSprite[r][c] !== ' ') {
+            grid[moonRow + r][moonCol + c] = moonSprite[r][c];
           }
         }
       }
     }
 
-    // Twinkling stars across the upper sky
-    const starCount = Math.min(25, Math.floor(this.cols * 0.35));
+    // 2. Dense constellation stars and nebulas across the sky
+    const starCount = Math.min(60, Math.floor(this.cols * 0.8));
     for (let i = 0; i < starCount; i++) {
-      const seed = i * 93.7;
+      const seed = i * 79.3;
       const c = Math.floor(seed % this.cols);
-      const r = Math.floor((seed * 0.4) % Math.floor(this.rows * 0.45));
-      const pulse = Math.sin(t * 1.1 + seed);
+      const r = Math.floor((seed * 0.45) % this.rows);
+      const pulse = Math.sin(t * 1.3 + seed);
 
-      if (r >= 0 && r < this.rows && c >= 0 && c < this.cols && pulse > 0.4) {
-        grid[r][c] = pulse > 0.85 ? '✦' : pulse > 0.6 ? '·' : '.';
+      if (r < this.rows && c < this.cols && pulse > 0.35) {
+        const glyph = pulse > 0.85 ? '✦' : pulse > 0.6 ? '*' : (i % 2 === 0) ? '+' : '·';
+        grid[r][c] = glyph;
+      }
+    }
+
+    // 3. Ancient Astrolabe / Planetary Alignment at bottom
+    const astrolabeRow = Math.min(this.rows - 3, Math.floor(this.rows * 0.9));
+    if (astrolabeRow < this.rows) {
+      const ring = '---( ( ( ⏼ ) ) )---';
+      const startC = Math.max(2, Math.floor((this.cols - ring.length) / 2));
+      for (let i = 0; i < ring.length; i++) {
+        if (startC + i < this.cols) grid[astrolabeRow][startC + i] = ring[i];
       }
     }
   }
