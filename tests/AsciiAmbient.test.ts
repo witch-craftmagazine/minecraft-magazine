@@ -143,6 +143,26 @@ describe('AsciiAmbientManager Backdrop System', () => {
     expect(manager.isEnabled()).toBe(true);
   });
 
+  it('sets data-scene attribute on preElement for light and dark responsive CSS styling', () => {
+    manager.setIssue('issue1');
+    expect(manager.getPreElement()?.getAttribute('data-scene')).toBe('study');
+
+    manager.setIssue('issue2');
+    expect(manager.getPreElement()?.getAttribute('data-scene')).toBe('meadow');
+
+    manager.setIssue('issue6');
+    expect(manager.getPreElement()?.getAttribute('data-scene')).toBe('halloween');
+
+    manager.setIssue('issue7');
+    expect(manager.getPreElement()?.getAttribute('data-scene')).toBe('winter');
+
+    manager.setIssue('issue2023');
+    expect(manager.getPreElement()?.getAttribute('data-scene')).toBe('static');
+
+    manager.setIssue('intro');
+    expect(manager.getPreElement()?.getAttribute('data-scene')).toBe('celestial');
+  });
+
   it('renders frame output without undefined or NaN tokens', () => {
     const scenes: ('study' | 'meadow' | 'halloween' | 'winter' | 'static' | 'celestial')[] = [
       'study', 'meadow', 'halloween', 'winter', 'static', 'celestial'
