@@ -1,4 +1,6 @@
 /* --- MINECRAFT MAGAZINE STYLING --- */
+@import '@fontsource/unifont';
+
 :root {
   --bg-black: #000000;
   --panel-bg: rgba(18, 18, 18, 0.92);

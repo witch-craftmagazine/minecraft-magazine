@@ -39,6 +39,17 @@ export function splitTextToLines(
   const paragraphs = text.split('\n');
   const resultLines: LineLayout[] = [];
 
+  // In Minecraft written books, each page is a continuous formatted text component.
+  // Styles carry over across explicit newlines (\n) within a page until cleared by §r or a new color code.
+  let carriedStyle = {
+    color: '#000000',
+    bold: false,
+    italic: false,
+    underlined: false,
+    strikethrough: false,
+    obfuscated: false,
+  };
+
   for (let pIdx = 0; pIdx < paragraphs.length; pIdx++) {
     const paragraph = paragraphs[pIdx];
     if (paragraph.length === 0) {
@@ -46,17 +57,6 @@ export function splitTextToLines(
       resultLines.push({ spans: [], width: 0 });
       continue;
     }
-
-    // In Minecraft Java Edition written books, formatting styles reset across explicit newlines (\n).
-    // Styles only carry over across automatic word wraps within the same paragraph.
-    let carriedStyle = {
-      color: '#000000',
-      bold: false,
-      italic: false,
-      underlined: false,
-      strikethrough: false,
-      obfuscated: false,
-    };
 
     const spans = parseFormattedText(paragraph, carriedStyle);
     if (spans.length === 0) {
