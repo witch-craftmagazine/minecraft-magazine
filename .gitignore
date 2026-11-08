@@ -19,3 +19,6 @@ Thumbs.db
 customresourcepack/
 docs/localgitignorethis/
 
+# Local developer notes and instructions
+CLAUDE.md
+
