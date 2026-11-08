@@ -38,6 +38,8 @@ export const MINECRAFT_SYMBOL_ADVANCES: Record<string, number> = {
   '✧': 5, '⋄': 4, '⋆': 4, '⋅': 2, '✦': 5,
   // Witchcraft Magazine Blinking Eye Easter Egg symbols (preserving exact 8px advance to prevent reflow)
   '⏼': 8, '◡': 8,
+  // Block Elements (U+2580 - U+2588): advance = 8px (seamless touching volume/progress blocks)
+  '▀': 8, ' ': 8, '▂': 8, '▃': 8, '▄': 8, '▅': 8, '▆': 8, '▇': 8, '█': 8,
   // Custom server and newer Unicode symbols
   '⛏': 9, '⯪': 8,
   // Combining diacritics / Zalgo (0px advance)
@@ -692,9 +694,24 @@ export class GlyphAtlas {
     if (ctx) {
       ctx.imageSmoothingEnabled = false;
       ctx.fillStyle = colorHex;
-      ctx.font = `${isBold ? 'bold ' : ''}16px "Unifont", "Minecraftia", monospace, sans-serif`;
-      ctx.textBaseline = 'alphabetic';
-      ctx.fillText(char, 0, 13);
+
+      const code = char.charCodeAt(0);
+      if (code >= 0x2580 && code <= 0x2588) {
+        // Block elements: draw exact solid geometric pixel blocks without system font margins
+        if (code === 0x2580) {
+          // Upper half block
+          ctx.fillRect(0, 0, 16, 8);
+        } else {
+          // Lower 1/8 to 8/8 blocks (U+2581..U+2588)
+          const eighths = code - 0x2580; // 1 to 8
+          const blockH = eighths * 2;
+          ctx.fillRect(0, 16 - blockH, 16, blockH);
+        }
+      } else {
+        ctx.font = `${isBold ? 'bold ' : ''}16px "Unifont", "Minecraftia", monospace, sans-serif`;
+        ctx.textBaseline = 'alphabetic';
+        ctx.fillText(char, 0, 13);
+      }
 
       // Eliminate subpixel anti-aliasing blur and crooked lines by thresholding alpha
       try {
