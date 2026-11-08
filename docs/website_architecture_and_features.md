@@ -111,6 +111,18 @@ flowchart TD
 - **Page Flip Sound Effects**: Synthesized or sampled authentic Minecraft page flip sounds triggered via Web Audio API on page changes.
 - **Ambient YouTube Music Embed**: Integrated player widget with volume control, track selector, and persistent background playback.
 
+### 3.3. Animated ASCII Ambient Backdrop System
+- **Peripheral Atmosphere**: Displays a tranquil, animated ASCII backdrop in the negative space outside the book canvas.
+- **Book Boundary Masking**: Characters strictly stop at the perimeter of the book canvas (plus a 16px buffer), guaranteeing zero text or noise peeking beneath or behind the open pages.
+- **Hypnotic & Low-Contrast**: Throttled to ~8 FPS with a muted palette (`rgba(165, 145, 205, 0.22)` in dark mode, soft sepia in light mode) and `pointer-events: none` to ensure zero reading distraction.
+- **Dynamic Lore Themes**:
+  - **Standard Editions**: Randomly selects on load between **The Witch's Study** (flickering brass candle & sleeping cat familiar) and **The Night Meadow** (treeline & drifting fireflies).
+  - **Halloween Editions** (Issues 6, 11, 17): Spooky spider dropping on silk & horned owl blinking on a branch.
+  - **Winter / Christmas Editions** (Issues 7, 12, 19): Soft snowfall tumbling through the air.
+  - **Issue X** (`issue2023`): Corrupted CRT television static & glitch scanlines tearing through the darkness.
+  - **Intro** (`intro`): Celestial moon phases waxing/waning with starlight.
+- **Interactive Control**: Toggleable via the `🕯️` header icon or `A` keyboard shortcut with persistent state in `localStorage`.
+
 ---
 
 ## 4. Accessibility & Inspector Tooling
@@ -142,10 +154,11 @@ bun test
 bun run build
 ```
 
-The test suite covers 75 tests across 9 test files validating:
+The test suite covers 85 tests across 10 test files validating:
 - Character advances and side-bearing gaps (`Unicode.test.ts`)
 - 114px line wrapping and paragraph indentation (`StringSplitter.test.ts`)
 - URL hash routing and deep linking (`UrlNavigation.test.ts`)
 - Stendhal, BookCopy, CMI, and `/give` serialization (`BookIO.test.ts`)
 - Accessibility ARIA generation and button hit-testing (`AccessibilityAndArrows.test.ts`)
 - Easter egg triggers and blink animations (`EasterEgg.test.ts`)
+- ASCII ambient backdrop masking and theme resolution (`AsciiAmbient.test.ts`)

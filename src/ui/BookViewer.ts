@@ -6,6 +6,7 @@ import { WITCHCRAFT_MAGAZINE_ISSUES } from '../samples/sampleBooks';
 import { parseStendhalBook } from '../io/BookParser';
 import { PageInspectorModal } from './PageInspectorModal';
 import { parseBookUrl, buildBookHash, buildShareableUrl } from './urlNavigation';
+import { AsciiAmbientManager } from '../ambient/AsciiAmbientManager';
 
 const isDev = !(import.meta as any).env?.PROD || (typeof window !== 'undefined' && (new URLSearchParams(window.location.search).has('dev') || new URLSearchParams(window.location.search).has('inspector')));
 
@@ -15,6 +16,7 @@ export class BookViewer {
   private bookCanvas!: BookCanvas;
   private packManager!: ResourcePackManager;
   private pageInspector: PageInspectorModal | null = null;
+  private asciiAmbient: AsciiAmbientManager | null = null;
 
   private currentBook: MinecraftBook = { title: '', author: '', pages: [''] };
   private currentIssueId = 'intro';
@@ -53,6 +55,15 @@ export class BookViewer {
 
     this.setupListeners();
 
+    // 0. Initialize ASCII ambient background and bind to book canvas
+    const ambientWrapper = this.container.querySelector('#ascii-ambient-wrapper') as HTMLElement;
+    if (ambientWrapper) {
+      this.asciiAmbient = new AsciiAmbientManager(ambientWrapper);
+      this.asciiAmbient.setCanvasElement(this.bookCanvas.getCanvas());
+      this.asciiAmbient.setIssue(this.currentIssueId);
+      this.asciiAmbient.start();
+    }
+
     // 1. Initialize canvas textures & load initial magazine issue concurrently
     await Promise.all([
       this.bookCanvas.init(),
@@ -84,16 +95,17 @@ export class BookViewer {
     this.container.innerHTML = `
       <!-- Main Reader Viewport (Pitch Black Background) -->
       <main class="reader-viewport">
+        <div class="ascii-ambient-wrapper" id="ascii-ambient-wrapper" aria-hidden="true"></div>
         <div class="canvas-wrapper" id="canvas-wrapper"></div>
       </main>
 
       <!-- Sleek Floating Magazine Selector Header -->
       <header class="magazine-nav" id="magazine-nav">
         <div class="magazine-nav-inner">
-          <div class="magazine-brand">
+          <a class="magazine-brand" href="https://linktr.ee/StarSweetpea" target="_blank" rel="noopener noreferrer" title="StarSweetpea on Linktree">
             <span class="magazine-brand-icon">✨</span>
             <span class="magazine-brand-title">witchcraft...magazine</span>
-          </div>
+          </a>
 
           <div class="magazine-selector-wrapper">
             <button class="nav-arrow-btn" id="btn-prev-issue" title="Previous Issue (Shift+Left or ◀)">◀</button>
@@ -117,6 +129,7 @@ export class BookViewer {
 
           <div class="magazine-meta">
             <span class="magazine-page-info" id="magazine-page-info">1-2 / 16</span>
+            <button class="nav-icon-btn" id="btn-ambient-toggle" title="Toggle ASCII Backdrop (A)">🕯️</button>
             <button class="nav-icon-btn" id="btn-share-page" title="Share link to this page (copies URL)" aria-label="Share link to this page">🔗</button>
             <button class="nav-icon-btn" id="btn-sound-toggle" title="Toggle Page Flip Sound">🔊</button>
             ${isDev ? `
@@ -139,6 +152,7 @@ export class BookViewer {
     if (!issue) return;
 
     this.currentIssueId = issue.id;
+    this.asciiAmbient?.setIssue(issue.id);
     const chips = this.container.querySelectorAll('.issue-chip') as NodeListOf<HTMLButtonElement>;
     chips.forEach(chip => {
       const match = chip.getAttribute('data-issue-id') === issueId;
@@ -247,6 +261,17 @@ export class BookViewer {
     // Share page button
     shareBtn?.addEventListener('click', () => this.handleShare());
 
+    // Ambient backdrop toggle button
+    const ambientBtn = this.container.querySelector('#btn-ambient-toggle') as HTMLButtonElement | null;
+    if (ambientBtn && this.asciiAmbient) {
+      ambientBtn.style.opacity = this.asciiAmbient.isEnabled() ? '1' : '0.5';
+      ambientBtn.addEventListener('click', () => {
+        const active = this.asciiAmbient!.toggle();
+        ambientBtn.style.opacity = active ? '1' : '0.5';
+        this.showToast(active ? 'Ambient Backdrop: Enabled' : 'Ambient Backdrop: Disabled');
+      });
+    }
+
     // Sound toggle button
     soundBtn?.addEventListener('click', () => {
       const active = soundManager.toggle();
@@ -288,6 +313,14 @@ export class BookViewer {
       } else if (isDev && (e.key === 'i' || e.key === 'I')) {
         e.preventDefault();
         this.pageInspector?.toggle(this.currentIssueId);
+      } else if (!e.ctrlKey && !e.metaKey && (e.key === 'a' || e.key === 'A')) {
+        e.preventDefault();
+        if (this.asciiAmbient) {
+          const active = this.asciiAmbient.toggle();
+          const btn = this.container.querySelector('#btn-ambient-toggle') as HTMLButtonElement | null;
+          if (btn) btn.style.opacity = active ? '1' : '0.5';
+          this.showToast(active ? 'Ambient Backdrop: Enabled' : 'Ambient Backdrop: Disabled');
+        }
       }
     });
 
@@ -361,6 +394,20 @@ export class BookViewer {
     }
 
     this.pageInspector?.onPageTurned();
+  }
+
+  private showToast(messageHtml: string): void {
+    const toast = this.container.querySelector('#share-toast') as HTMLElement;
+    if (toast) {
+      if (this.toastTimeout) {
+        clearTimeout(this.toastTimeout);
+      }
+      toast.innerHTML = messageHtml;
+      toast.classList.add('show');
+      this.toastTimeout = setTimeout(() => {
+        toast.classList.remove('show');
+      }, 2600);
+    }
   }
 
   private async handleShare(): Promise<void> {
