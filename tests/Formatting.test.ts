@@ -4,6 +4,7 @@ import {
   stripFormatting,
   normalizeFormattingCodes,
   MINECRAFT_COLORS,
+  createDefaultStyle,
 } from '../src/engine/Formatting';
 
 describe('Formatting parser', () => {
@@ -65,5 +66,39 @@ describe('Formatting parser', () => {
   it('strips formatting codes cleanly', () => {
     const text = '§6Gold §lBold §kObf §rPlain';
     expect(stripFormatting(text)).toBe('Gold Bold Obf Plain');
+  });
+
+  it('mutates active style in-place and persists across lines with only formatting codes', () => {
+    const activeStyle = createDefaultStyle();
+    
+    // Line 1: Set dark purple and bold (§l must follow §5 in vanilla)
+    const line1Spans = parseFormattedText('§5§lBold Purple', activeStyle);
+    expect(line1Spans[0].bold).toBe(true);
+    expect(line1Spans[0].color).toBe('#AA00AA');
+    expect(activeStyle.bold).toBe(true);
+    expect(activeStyle.color).toBe('#AA00AA');
+
+    // Line 2: Only formatting codes (§d resets bold and sets light purple)
+    const line2Spans = parseFormattedText('§d§v§d§d§', activeStyle);
+    expect(line2Spans).toHaveLength(0);
+    expect(activeStyle.bold).toBe(false);
+    expect(activeStyle.color).toBe('#FF55FF');
+
+    // Line 3: Text inheriting the non-bold light purple style
+    const line3Spans = parseFormattedText('Witch ASCII Art', activeStyle);
+    expect(line3Spans[0].bold).toBe(false);
+    expect(line3Spans[0].color).toBe('#FF55FF');
+  });
+
+  it('parses italic (§o) formatting accurately', () => {
+    const text = '§6Normal §oItalic §rReset';
+    const spans = parseFormattedText(text);
+    expect(spans).toHaveLength(3);
+    expect(spans[0].text).toBe('Normal ');
+    expect(spans[0].italic).toBe(false);
+    expect(spans[1].text).toBe('Italic ');
+    expect(spans[1].italic).toBe(true);
+    expect(spans[2].text).toBe('Reset');
+    expect(spans[2].italic).toBe(false);
   });
 });

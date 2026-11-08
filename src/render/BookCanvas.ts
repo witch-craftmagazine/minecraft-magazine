@@ -60,6 +60,7 @@ export class BookCanvas {
   private animFrameId: number | null = null;
   private lastAnimTick = 0;
   private randomCharPool = 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789!@#$%^&*()_+{}[]:;<>?,./~';
+  private randomCharsByAdvance: Map<number, string[]> = new Map();
 
   constructor(options: BookCanvasOptions) {
     this.container = options.container;
@@ -70,6 +71,14 @@ export class BookCanvas {
     this.textSelectionEnabled = options.textSelectionEnabled ?? false;
     if (options.defaultViewMode) {
       this.viewMode = options.defaultViewMode;
+    }
+
+    for (const ch of this.randomCharPool) {
+      const adv = this.atlas.getAdvance(ch, false);
+      if (!this.randomCharsByAdvance.has(adv)) {
+        this.randomCharsByAdvance.set(adv, []);
+      }
+      this.randomCharsByAdvance.get(adv)!.push(ch);
     }
 
     this.stageElement = document.createElement('div');
@@ -478,8 +487,7 @@ export class BookCanvas {
       for (const span of line.spans) {
         for (let charToDraw of span.text) {
           if (span.obfuscated && charToDraw !== ' ') {
-            const randIdx = Math.floor(Math.random() * this.randomCharPool.length);
-            charToDraw = this.randomCharPool[randIdx];
+            charToDraw = this.getRandomCharFor(charToDraw, span.bold);
           }
 
           const glyphInfo = this.atlas.getGlyphDrawInfo(charToDraw, span.color, span.bold);
@@ -487,6 +495,11 @@ export class BookCanvas {
             const destW = glyphInfo.dWidth ?? glyphInfo.sWidth;
             const destH = glyphInfo.dHeight ?? glyphInfo.sHeight;
             const drawY = y + (glyphInfo.yOffset ?? 0);
+
+            if (span.italic) {
+              this.ctx.save();
+              this.ctx.transform(1, 0, -0.15, 1, (drawY + destH) * 0.15, 0);
+            }
 
             this.ctx.drawImage(
               glyphInfo.image,
@@ -514,14 +527,18 @@ export class BookCanvas {
               );
             }
 
+            if (span.italic) {
+              this.ctx.restore();
+            }
+
             if (span.underlined) {
               this.ctx.fillStyle = span.color;
-              this.ctx.fillRect(cursorX, y + 8, glyphInfo.advance, 1);
+              this.ctx.fillRect(cursorX - 1, y + 8, glyphInfo.advance + 1, 1);
             }
 
             if (span.strikethrough) {
               this.ctx.fillStyle = span.color;
-              this.ctx.fillRect(cursorX, y + 4, glyphInfo.advance, 1);
+              this.ctx.fillRect(cursorX - 1, y + 4, glyphInfo.advance + 1, 1);
             }
 
             cursorX += glyphInfo.advance;
@@ -959,6 +976,18 @@ export class BookCanvas {
       }
     }
     return false;
+  }
+
+  private getRandomCharFor(char: string, isBold: boolean): string {
+    const adv = this.atlas.getAdvance(char, isBold);
+    const baseAdv = isBold ? Math.max(1, adv - 1) : adv;
+    const pool = this.randomCharsByAdvance.get(baseAdv);
+    if (pool && pool.length > 0) {
+      const idx = Math.floor(Math.random() * pool.length);
+      return pool[idx];
+    }
+    const randIdx = Math.floor(Math.random() * this.randomCharPool.length);
+    return this.randomCharPool[randIdx];
   }
 
   public toDataURL(): string {

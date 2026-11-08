@@ -102,11 +102,12 @@ export function normalizeFormattingCodes(input: string): string {
 
 /**
  * Parses a string containing § formatting codes into an array of FormattedSpan objects.
+ * If activeStyle is provided, its state is mutated in-place to persist formatting across lines.
  */
-export function parseFormattedText(rawText: string, initialStyle?: StyleState): FormattedSpan[] {
+export function parseFormattedText(rawText: string, activeStyle?: StyleState): FormattedSpan[] {
   const text = normalizeFormattingCodes(rawText);
   const spans: FormattedSpan[] = [];
-  const style: StyleState = initialStyle ? { ...initialStyle } : createDefaultStyle();
+  const style: StyleState = activeStyle || createDefaultStyle();
 
   let currentBuffer = '';
 
