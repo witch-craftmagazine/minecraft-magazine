@@ -62,6 +62,14 @@ export class BookCanvas {
   private randomCharPool = 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789!@#$%^&*()_+{}[]:;<>?,./~';
   private randomCharsByAdvance: Map<number, string[]> = new Map();
 
+  // Witchcraft Magazine Blinking Eye Easter Egg (StarSweetpea exclusive)
+  private isWitchcraftMagazine = false;
+  private isBlinkingEye = false;
+  private nextBlinkTimestamp = 0;
+  private blinkEndTimestamp = 0;
+  private hasEyeOnCurrentPage = false;
+  private eyeHitBoxes: Array<{ x: number; y: number; w: number; h: number }> = [];
+
   constructor(options: BookCanvasOptions) {
     this.container = options.container;
     this.atlas = options.atlas || defaultGlyphAtlas;
@@ -175,9 +183,82 @@ export class BookCanvas {
 
   public setBook(book: MinecraftBook): void {
     this.book = book;
+    this.isWitchcraftMagazine = this.detectWitchcraftMagazine(book);
     this.recalculatePages();
     this.currentPage = 0;
+    this.updateHasEyeOnCurrentPage();
+    if (this.isWitchcraftMagazine) {
+      const now = typeof performance !== 'undefined' ? performance.now() : Date.now();
+      this.scheduleNextBlink(now);
+    }
     this.notifyPageChange();
+    this.render();
+  }
+
+  private detectWitchcraftMagazine(book: MinecraftBook): boolean {
+    const author = (book.author || '').toLowerCase();
+    const title = (book.title || '').toLowerCase();
+    return author.includes('starsweetpea') || title.includes('witchcraft');
+  }
+
+  private scheduleNextBlink(now: number): void {
+    // Autonomous blink interval between 3.5s and 6.5s
+    this.nextBlinkTimestamp = now + 3500 + Math.random() * 3000;
+  }
+
+  public updateHasEyeOnCurrentPage(): void {
+    this.hasEyeOnCurrentPage = false;
+    if (!this.isWitchcraftMagazine) return;
+
+    const pagesToCheck = [this.currentPage];
+    if (this.viewMode === 'double' && this.currentPage + 1 < this.paginatedPages.length) {
+      pagesToCheck.push(this.currentPage + 1);
+    }
+
+    for (const pIdx of pagesToCheck) {
+      const pageLines = this.paginatedPages[pIdx];
+      if (!pageLines) continue;
+      for (const line of pageLines) {
+        for (const span of line.spans) {
+          if (span.text.includes('⏼')) {
+            this.hasEyeOnCurrentPage = true;
+            return;
+          }
+        }
+      }
+    }
+  }
+
+  public setIsWitchcraftMagazine(enabled: boolean): void {
+    this.isWitchcraftMagazine = enabled;
+    this.updateHasEyeOnCurrentPage();
+    if (this.isWitchcraftMagazine) {
+      const now = typeof performance !== 'undefined' ? performance.now() : Date.now();
+      this.scheduleNextBlink(now);
+    } else {
+      this.isBlinkingEye = false;
+    }
+    this.render();
+  }
+
+  public getIsWitchcraftMagazine(): boolean {
+    return this.isWitchcraftMagazine;
+  }
+
+  public getIsBlinkingEye(): boolean {
+    return this.isBlinkingEye;
+  }
+
+  public getHasEyeOnCurrentPage(): boolean {
+    return this.hasEyeOnCurrentPage;
+  }
+
+  public triggerBlink(): void {
+    if (!this.isWitchcraftMagazine || !this.hasEyeOnCurrentPage) return;
+    const now = typeof performance !== 'undefined' ? performance.now() : Date.now();
+    this.isBlinkingEye = true;
+    this.blinkEndTimestamp = now + 160;
+    this.scheduleNextBlink(now + 160);
     this.render();
   }
 
@@ -233,6 +314,7 @@ export class BookCanvas {
       if (mode === 'double' && this.currentPage % 2 !== 0) {
         this.currentPage--;
       }
+      this.updateHasEyeOnCurrentPage();
       this.updateCanvasDimensions();
       this.notifyPageChange();
       this.render();
@@ -291,6 +373,8 @@ export class BookCanvas {
     if (clamped !== this.currentPage) {
       this.currentPage = clamped;
       this.highlightedLineIndex = null;
+      this.isBlinkingEye = false;
+      this.updateHasEyeOnCurrentPage();
       soundManager.playPageTurn();
       this.notifyPageChange();
       this.render();
@@ -299,15 +383,19 @@ export class BookCanvas {
 
   public nextPage(): void {
     const step = this.viewMode === 'double' ? 2 : 1;
+    let changed = false;
     if (this.currentPage + step < this.paginatedPages.length) {
       this.currentPage += step;
-      this.highlightedLineIndex = null;
-      soundManager.playPageTurn();
-      this.notifyPageChange();
-      this.render();
+      changed = true;
     } else if (this.viewMode === 'double' && this.currentPage + 1 < this.paginatedPages.length) {
       this.currentPage += 1;
+      changed = true;
+    }
+
+    if (changed) {
       this.highlightedLineIndex = null;
+      this.isBlinkingEye = false;
+      this.updateHasEyeOnCurrentPage();
       soundManager.playPageTurn();
       this.notifyPageChange();
       this.render();
@@ -316,15 +404,19 @@ export class BookCanvas {
 
   public prevPage(): void {
     const step = this.viewMode === 'double' ? 2 : 1;
+    let changed = false;
     if (this.currentPage - step >= 0) {
       this.currentPage -= step;
-      this.highlightedLineIndex = null;
-      soundManager.playPageTurn();
-      this.notifyPageChange();
-      this.render();
+      changed = true;
     } else if (this.currentPage > 0) {
       this.currentPage = 0;
+      changed = true;
+    }
+
+    if (changed) {
       this.highlightedLineIndex = null;
+      this.isBlinkingEye = false;
+      this.updateHasEyeOnCurrentPage();
       soundManager.playPageTurn();
       this.notifyPageChange();
       this.render();
@@ -357,6 +449,7 @@ export class BookCanvas {
   public render(): void {
     if (!this.bookBg) return;
 
+    this.eyeHitBoxes = [];
     this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
 
     this.ctx.save();
@@ -490,7 +583,17 @@ export class BookCanvas {
             charToDraw = this.getRandomCharFor(charToDraw, span.bold);
           }
 
-          const glyphInfo = this.atlas.getGlyphDrawInfo(charToDraw, span.color, span.bold);
+          let glyphChar = charToDraw;
+          let forceAdvance: number | null = null;
+          if (charToDraw === '⏼' && this.isWitchcraftMagazine) {
+            this.eyeHitBoxes.push({ x: cursorX - 2, y: y - 2, w: 12, h: 12 });
+            if (this.isBlinkingEye) {
+              glyphChar = '◡';
+              forceAdvance = this.atlas.getAdvance('⏼', span.bold);
+            }
+          }
+
+          const glyphInfo = this.atlas.getGlyphDrawInfo(glyphChar, span.color, span.bold);
           if (glyphInfo) {
             const destW = glyphInfo.dWidth ?? glyphInfo.sWidth;
             const destH = glyphInfo.dHeight ?? glyphInfo.sHeight;
@@ -531,19 +634,21 @@ export class BookCanvas {
               this.ctx.restore();
             }
 
+            const charAdvance = forceAdvance !== null ? forceAdvance : glyphInfo.advance;
+
             if (span.underlined) {
               this.ctx.fillStyle = span.color;
-              this.ctx.fillRect(cursorX - 1, y + 8, glyphInfo.advance + 1, 1);
+              this.ctx.fillRect(cursorX - 1, y + 8, charAdvance + 1, 1);
             }
 
             if (span.strikethrough) {
               this.ctx.fillStyle = span.color;
-              this.ctx.fillRect(cursorX - 1, y + 4, glyphInfo.advance + 1, 1);
+              this.ctx.fillRect(cursorX - 1, y + 4, charAdvance + 1, 1);
             }
 
-            cursorX += glyphInfo.advance;
+            cursorX += charAdvance;
           } else {
-            cursorX += this.atlas.getAdvance(charToDraw, span.bold);
+            cursorX += forceAdvance !== null ? forceAdvance : this.atlas.getAdvance(glyphChar, span.bold);
           }
         }
       }
@@ -751,6 +856,22 @@ export class BookCanvas {
         return;
       }
 
+      // 1.5. Witchcraft Magazine eye easter egg click (wink interaction!)
+      if (this.isWitchcraftMagazine && this.hasEyeOnCurrentPage && this.eyeHitBoxes.length > 0) {
+        for (const box of this.eyeHitBoxes) {
+          if (
+            unscaledX >= box.x &&
+            unscaledX <= box.x + box.w &&
+            unscaledY >= box.y &&
+            unscaledY <= box.y + box.h
+          ) {
+            this.triggerBlink();
+            soundManager.playWink();
+            return;
+          }
+        }
+      }
+
       // 2. When text selection is enabled, prevent page turning only if user was dragging to select
       if (this.textSelectionEnabled) {
         if (Math.hypot(e.clientX - pointerDownX, e.clientY - pointerDownY) > 5) return;
@@ -949,12 +1070,36 @@ export class BookCanvas {
 
   private startAnimLoop(): void {
     const tick = (now: number) => {
+      let needsRender = false;
+
+      // 1. Obfuscated text animation (§k): ~12.5 FPS (80ms ticks)
       if (now - this.lastAnimTick >= 80) {
         if (this.hasObfuscatedTextOnCurrentPage()) {
-          this.render();
+          needsRender = true;
         }
         this.lastAnimTick = now;
       }
+
+      // 2. Witchcraft Magazine eye blinking easter egg:
+      if (this.isWitchcraftMagazine && this.hasEyeOnCurrentPage) {
+        if (!this.isBlinkingEye && now >= this.nextBlinkTimestamp) {
+          this.isBlinkingEye = true;
+          this.blinkEndTimestamp = now + 160; // 160ms blink duration
+          this.scheduleNextBlink(now + 160);
+          needsRender = true;
+        } else if (this.isBlinkingEye && now >= this.blinkEndTimestamp) {
+          this.isBlinkingEye = false;
+          needsRender = true;
+        }
+      } else if (this.isBlinkingEye) {
+        this.isBlinkingEye = false;
+        needsRender = true;
+      }
+
+      if (needsRender) {
+        this.render();
+      }
+
       this.animFrameId = requestAnimationFrame(tick);
     };
     this.animFrameId = requestAnimationFrame(tick);
