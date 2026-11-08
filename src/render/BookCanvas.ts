@@ -6,9 +6,9 @@ import { soundManager } from './SoundEffects';
 import { ResourcePackInfo } from '../engine/ResourcePackManager';
 
 // Dimensions and layout
-const TWO_PAGE_OVERLAP = 42; // Eliminates transparent padding so spine meets in center
-const TWO_PAGE_WIDTH = 384 - TWO_PAGE_OVERLAP; // 342px base width
-const RIGHT_PAGE_X = 192 - TWO_PAGE_OVERLAP;   // 150px base offset
+const TWO_PAGE_OVERLAP = 40; // Exact touch at spine seam with 0 overlapping non-transparent pixels
+const TWO_PAGE_WIDTH = 384 - TWO_PAGE_OVERLAP; // 344px base width
+const RIGHT_PAGE_X = 192 - TWO_PAGE_OVERLAP;   // 152px base offset
 
 export interface BookCanvasOptions {
   container: HTMLElement;
@@ -158,6 +158,7 @@ export class BookCanvas {
           this.starSweetPeaImg = img;
         })
         .catch(() => {}),
+      soundManager.load(this.baseAssetPath),
     ]);
 
     this.updateCanvasDimensions();
@@ -334,10 +335,10 @@ export class BookCanvas {
     // or right page is the last page and is blank
     if (rightIdx >= totalPages) {
       if (!this.isPageBlank(leftIdx)) {
-        return { x: 199, y, w, h };
+        return { x: RIGHT_PAGE_X + 49, y, w, h };
       }
     } else if (rightIdx === totalPages - 1 && this.isPageBlank(rightIdx)) {
-      return { x: 199, y, w, h };
+      return { x: RIGHT_PAGE_X + 49, y, w, h };
     }
 
     return null;

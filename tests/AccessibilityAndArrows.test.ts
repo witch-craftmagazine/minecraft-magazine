@@ -91,29 +91,29 @@ describe('Accessibility Text Layer & Arrow Symmetry', () => {
   };
 
   it('guarantees arrow symmetry in two-page mode', () => {
-    const TWO_PAGE_WIDTH = 342;
-    const SPINE_X = TWO_PAGE_WIDTH / 2; // 171
+    const TWO_PAGE_WIDTH = 344;
+    const SPINE_X = TWO_PAGE_WIDTH / 2; // 172
     const ARROW_WIDTH = 23;
 
     // Double page mode left backward button:
     const leftArrowX = 53;
     const leftArrowRight = leftArrowX + ARROW_WIDTH; // 76
     const leftDistanceToOuterEdge = leftArrowX; // 53px
-    const leftDistanceToSpine = SPINE_X - leftArrowRight; // 171 - 76 = 95px
+    const leftDistanceToSpine = SPINE_X - leftArrowRight; // 172 - 76 = 96px
 
     // Double page mode right forward button:
-    // RIGHT_PAGE_X = 150. forwardButtonX = 150 + 116 = 266.
-    const rightArrowX = 150 + 116; // 266
-    const rightArrowRight = rightArrowX + ARROW_WIDTH; // 289
-    const rightDistanceToOuterEdge = TWO_PAGE_WIDTH - rightArrowRight; // 342 - 289 = 53px
-    const rightDistanceToSpine = rightArrowX - SPINE_X; // 266 - 171 = 95px
+    // RIGHT_PAGE_X = 152. forwardButtonX = 152 + 116 = 268.
+    const rightArrowX = 152 + 116; // 268
+    const rightArrowRight = rightArrowX + ARROW_WIDTH; // 291
+    const rightDistanceToOuterEdge = TWO_PAGE_WIDTH - rightArrowRight; // 344 - 291 = 53px
+    const rightDistanceToSpine = rightArrowX - SPINE_X; // 268 - 172 = 96px
 
     // Verify perfect symmetry
     expect(leftDistanceToOuterEdge).toBe(rightDistanceToOuterEdge);
     expect(leftDistanceToOuterEdge).toBe(53);
 
     expect(leftDistanceToSpine).toBe(rightDistanceToSpine);
-    expect(leftDistanceToSpine).toBe(95);
+    expect(leftDistanceToSpine).toBe(96);
   });
 
   it('correctly performs hitTestButtons with the symmetrical double-page positions', () => {
@@ -127,10 +127,10 @@ describe('Accessibility Text Layer & Arrow Symmetry', () => {
     // In double mode, current page is 0, right page is 1.
     // Backward button is disabled on page 0. Forward button is enabled.
     expect(bookCanvas.hitTestButtons(53, 160)).toBeNull(); // page 0 can't go backward
-    expect(bookCanvas.hitTestButtons(266, 160)).toBe('forward');
-    expect(bookCanvas.hitTestButtons(289, 160)).toBe('forward');
-    expect(bookCanvas.hitTestButtons(265, 160)).toBeNull(); // just outside left
-    expect(bookCanvas.hitTestButtons(290, 160)).toBeNull(); // just outside right
+    expect(bookCanvas.hitTestButtons(268, 160)).toBe('forward');
+    expect(bookCanvas.hitTestButtons(291, 160)).toBe('forward');
+    expect(bookCanvas.hitTestButtons(267, 160)).toBeNull(); // just outside left
+    expect(bookCanvas.hitTestButtons(292, 160)).toBeNull(); // just outside right
 
     // Move to page 2 (left: 2, right: 3)
     bookCanvas.setPage(2);
@@ -392,5 +392,26 @@ describe('Accessibility Text Layer & Arrow Symmetry', () => {
 
     bookCanvas.nextPage();
     expect((bookCanvas as any).highlightedLineIndex).toBeNull();
+  });
+
+  it('verifies that two-page spread elimination of background overlap maintains 344px width and 152px offset', () => {
+    const bookCanvas = new BookCanvas({
+      container: mockContainer,
+      defaultViewMode: 'double',
+    });
+    bookCanvas.setBook(sampleBook);
+
+    // In double mode:
+    // TWO_PAGE_OVERLAP = 40; TWO_PAGE_WIDTH = 344; RIGHT_PAGE_X = 152
+    // Left backward arrow at 53px, right forward arrow at 268px
+    // Distance from right edge = 344 - (268 + 23) = 53px
+    expect(bookCanvas.hitTestButtons(268, 160)).toBe('forward');
+  });
+
+  it('safely handles SoundManager load and playPageTurn without throwing in test environment', async () => {
+    const { soundManager } = await import('../src/render/SoundEffects');
+    expect(soundManager.isEnabled()).toBe(true);
+    await soundManager.load('./assets');
+    expect(() => soundManager.playPageTurn()).not.toThrow();
   });
 });
