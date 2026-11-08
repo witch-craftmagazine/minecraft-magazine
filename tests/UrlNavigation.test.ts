@@ -1,9 +1,19 @@
 import { describe, it, expect } from 'vitest';
 import { parseBookUrl, buildBookHash, buildShareableUrl } from '../src/ui/urlNavigation';
 
-const VALID_ISSUES = ['intro', 'issue1', 'issue2', 'issue13', 'issue2023'];
+const VALID_ISSUES = ['intro', 'issue1', 'issue2', 'issue13', 'issue2023', 'issue11.5', 'issueX'];
 
 describe('URL Navigation and Deep-linking', () => {
+  it('parses Issue X shorthand (#issueX/1)', () => {
+    const res = parseBookUrl('#issueX/1', VALID_ISSUES);
+    expect(res.issueId).toBe('issueX');
+    expect(res.page).toBe(1);
+  });
+  it('parses decimal issue identifiers in shorthand (#issue11.5/3)', () => {
+    const res = parseBookUrl('#issue11.5/3', VALID_ISSUES);
+    expect(res.issueId).toBe('issue11.5');
+    expect(res.page).toBe(3);
+  });
   it('parses standard key-value hash format (#issue=issue1&page=13)', () => {
     const res = parseBookUrl('#issue=issue1&page=13', VALID_ISSUES);
     expect(res.issueId).toBe('issue1');

@@ -70,7 +70,7 @@ export class BookViewer {
 
   private resolveInitialStateFromUrl(): void {
     if (typeof window === 'undefined') return;
-    const validIds = WITCHCRAFT_MAGAZINE_ISSUES.map(m => m.id);
+    const validIds = WITCHCRAFT_MAGAZINE_ISSUES.flatMap(m => [m.id, ...(m.aliases || [])]);
     const parsed = parseBookUrl(window.location.href, validIds);
     if (parsed.issueId) {
       this.currentIssueId = parsed.issueId;
@@ -135,10 +135,10 @@ export class BookViewer {
   }
 
   private async loadIssue(issueId: string, targetPage?: number): Promise<void> {
-    const issue = WITCHCRAFT_MAGAZINE_ISSUES.find(m => m.id === issueId);
+    const issue = WITCHCRAFT_MAGAZINE_ISSUES.find(m => m.id === issueId || m.aliases?.includes(issueId));
     if (!issue) return;
 
-    this.currentIssueId = issueId;
+    this.currentIssueId = issue.id;
     const chips = this.container.querySelectorAll('.issue-chip') as NodeListOf<HTMLButtonElement>;
     chips.forEach(chip => {
       const match = chip.getAttribute('data-issue-id') === issueId;
@@ -302,7 +302,7 @@ export class BookViewer {
 
     // Hash change listener for browser navigation (back/forward or manual hash entry)
     window.addEventListener('hashchange', () => {
-      const validIds = WITCHCRAFT_MAGAZINE_ISSUES.map(m => m.id);
+      const validIds = WITCHCRAFT_MAGAZINE_ISSUES.flatMap(m => [m.id, ...(m.aliases || [])]);
       const parsed = parseBookUrl(window.location.hash, validIds);
       if (parsed.issueId && parsed.issueId !== this.currentIssueId) {
         this.loadIssue(parsed.issueId, parsed.page ?? 1);

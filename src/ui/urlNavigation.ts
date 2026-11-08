@@ -66,8 +66,8 @@ export function parseBookUrl(input: string, validIssueIds?: readonly string[]): 
         }
       }
     } else {
-      // Check shorthand formats: "issue1/13" or "issue1:13"
-      const slashMatch = hashPart.match(/^([a-zA-Z0-9_-]+)[/:]([0-9]+)$/);
+      // Check shorthand formats: "issue1/13" or "issue1:13" or "issue11.5:1"
+      const slashMatch = hashPart.match(/^([a-zA-Z0-9_.-]+)[/:]([0-9]+)$/);
       if (slashMatch) {
         issueId = slashMatch[1];
         const p = parseInt(slashMatch[2], 10);
