@@ -67,9 +67,17 @@ describe('AsciiAmbientManager Backdrop System', () => {
     expect(frame).toContain('═'); // Ceiling beams
     expect(frame).toContain('─'); // Clean desk line
     expect(frame).toContain('/\\_/\\'); // Cat ears
-    expect(frame).toContain('|===|'); // Potted fern rim
+    expect(frame).toContain('|=========|'); // Potted fern rim
     expect(frame).not.toContain('[|||||]'); // No barcode bookshelf stripes
     expect(frame).not.toContain('[////]'); // No diagonal stripes
+  });
+
+  it('renders the night meadow using premade fireflies.ts treeline, moon, and swaying grass blades', () => {
+    manager.setIssue('issue2'); // Meadow scene
+    const frame = manager.renderFrame();
+    expect(frame).toContain('_.._'); // Premade crescent moon
+    expect(frame).toContain('.-.'); // Premade treeline canopy
+    expect(frame).toContain('__'); // Ground line
   });
 
   it('positions top elements below the toolbar and anchors bottom elements near the bottom edge on portrait screens', () => {

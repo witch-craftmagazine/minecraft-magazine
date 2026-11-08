@@ -442,21 +442,28 @@ export class AsciiAmbientManager {
 
   private stampFern(grid: string[][], col: number, row: number, t: number): void {
     const sway = Math.sin(t * 1.4);
-    const topRow = sway > 0.3 
-      ? '   . \\ | / . ' 
-      : sway < -0.3 
-        ? ' . \\ | / .   ' 
-        : '  . \\ | / .  ';
+    // Animated lush fern fronds swaying in the room breeze
+    const tipRow = sway > 0.35 
+      ? '   \\  |  .   '
+      : sway < -0.35
+        ? '   .  |  /   '
+        : '   .  |  .   ';
+    const midRow = sway > 0.35
+      ? ' .  \\ | /    '
+      : sway < -0.35
+        ? '    \\ | /  . '
+        : ' .  \\ | /  . ';
 
     const sprite = [
-      topRow,
-      '  . \\ | / .  ',
+      tipRow,
+      midRow,
       '-( (\\ | /) )-',
-      '  (( \\|/ ))  ',
-      '   (__|__)   ',
-      '    |===|    ',
-      '    \\   /    ',
-      '     `=\'     ',
+      ' (( (\\|/) )) ',
+      '  ( (\\|/) )  ',
+      ' ._________. ',
+      ' |=========| ',
+      ' \\         / ',
+      '  `=======\'  ',
     ];
 
     for (let r = 0; r < sprite.length; r++) {
@@ -534,75 +541,133 @@ export class AsciiAmbientManager {
   }
 
   /* ------------------------------------------------------------- */
-  /* SCENE 2: THE NIGHT MEADOW (Treeline, Moon & Bioluminescence) */
+  /* SCENE 2: THE NIGHT MEADOW (Premade fireflies.ts artwork)     */
   /* ------------------------------------------------------------- */
   private drawMeadowScene(grid: string[][], t: number, isPortrait: boolean): void {
-    // 1. Crescent moon in the upper sky (placed below toolbar on mobile)
+    // 1. Crescent moon from premade fireflies.ts
+    const MOON = ['   _.._', ' .\' .-\'', '/  /', '|  |', '\\  \\', ' `._`-.'];
     const moonCol = Math.max(4, Math.floor(this.cols * (isPortrait ? 0.80 : 0.88)));
     const moonRow = isPortrait ? 4 : 2;
-    const moon = [
-      ' _.._ ',
-      '\' .-\'',
-      '/ /  ',
-      '| |  ',
-      '\\ \\  ',
-      ' `._`',
-    ];
-    for (let r = 0; r < moon.length; r++) {
+    for (let r = 0; r < MOON.length; r++) {
       if (moonRow + r < this.rows) {
-        for (let c = 0; c < moon[r].length; c++) {
-          if (moonCol + c < this.cols && moon[r][c] !== ' ') {
-            grid[moonRow + r][moonCol + c] = moon[r][c];
+        for (let c = 0; c < MOON[r].length; c++) {
+          if (moonCol + c < this.cols && MOON[r][c] !== ' ') {
+            grid[moonRow + r][moonCol + c] = MOON[r][c];
           }
         }
       }
     }
 
-    // 2. Stars across the sky (below toolbar)
-    const starCount = Math.min(45, Math.floor(this.cols * 0.6));
+    // 2. Stars across the upper night sky
+    const horizon = isPortrait ? (this.rows - 5) : Math.min(this.rows - 5, Math.floor(this.rows * 0.78));
+    const ground = isPortrait ? (this.rows - 1) : Math.min(this.rows - 1, horizon + 4);
     const minStarRow = isPortrait ? 4 : 1;
-    const maxStarRow = Math.max(minStarRow + 2, Math.floor(this.rows * (isPortrait ? 0.35 : 0.45)));
+    const maxStarRow = Math.max(minStarRow + 2, horizon - 4);
+    const starCount = Math.min(30, Math.floor(this.cols * 0.45));
     for (let i = 0; i < starCount; i++) {
       const seed = i * 61.3;
-      const c = Math.floor(seed % this.cols);
-      const r = minStarRow + Math.floor((seed * 0.3) % (maxStarRow - minStarRow));
-      const pulse = Math.sin(t * 1.2 + seed);
-      if (r < this.rows && c < this.cols && pulse > 0.4) {
-        grid[r][c] = pulse > 0.85 ? '✦' : pulse > 0.6 ? '+' : '·';
+      const c = Math.floor(seed % Math.max(1, this.cols - 14));
+      const r = minStarRow + Math.floor((seed * 0.3) % Math.max(1, maxStarRow - minStarRow));
+      const pulse = Math.sin(t * 1.3 + seed);
+      if (r < this.rows && c < this.cols && pulse > 0.35 && grid[r][c] === ' ') {
+        grid[r][c] = pulse > 0.85 ? '+' : pulse > 0.6 ? '·' : '.';
       }
     }
 
-    // 3. Dense treeline across the bottom (further down on mobile)
-    const horizon = isPortrait ? (this.rows - 4) : Math.min(this.rows - 5, Math.floor(this.rows * 0.78));
-    const treePattern = '  /\\   /\\/\\    /\\  /\\/\\/\\   /\\   /\\/\\   /\\  ';
-    if (horizon >= 0 && horizon < this.rows) {
+    // 3. Rolling treeline canopy from premade fireflies.ts
+    const TREES = [
+      '                  .-.                         _',
+      '     .-.   .--. .\'   `.  .-.       .--.    .-\' `-.   .-.',
+      '__.-\'   `-\'    `       `-\'   `-.__.\'    `--\'      `-\'   `-._',
+    ];
+    for (let r = 0; r < TREES.length; r++) {
+      const row = horizon - 3 + r;
+      if (row >= 0 && row < this.rows) {
+        const line = TREES[r];
+        for (let c = 0; c < this.cols; c++) {
+          const ch = line[c % line.length];
+          if (ch !== ' ') grid[row][c] = ch;
+        }
+      }
+    }
+
+    // 4. Ground base line from premade fireflies.ts
+    if (ground >= 0 && ground < this.rows) {
       for (let c = 0; c < this.cols; c++) {
-        grid[horizon][c] = treePattern[c % treePattern.length];
+        grid[ground][c] = '_';
       }
     }
 
-    // 4. Multiple grass & wildflower layers on the ground
-    const ground = isPortrait ? (this.rows - 1) : (horizon + 3);
-    if (ground < this.rows) {
-      for (let c = 0; c < this.cols; c++) {
-        const grass = (c % 5 === 0) ? '✿' : (c % 2 === 0) ? '"' : '_';
-        grid[ground][c] = grass;
+    // 5. Dynamic tufts of fanned grass blades swaying (from fireflies.ts)
+    const FANS = [[-1, 0, 1], [-1, 0, 1], [0, 1], [-1, 0], [-1, 1]];
+    for (let x = 2; x < this.cols - 2; x += 4) {
+      const seed = x * 17.3;
+      const h = 2 + Math.floor((Math.sin(seed) * 0.5 + 0.5) * 3);
+      const ph = x * 0.23;
+      const fanIdx = Math.floor(Math.abs(Math.sin(seed * 2.1)) * FANS.length) % FANS.length;
+      const fan = FANS[fanIdx];
+      const sway = 0.6 * Math.sin(t * 1.6 - ph);
+
+      for (const lean of fan) {
+        const bladeH = lean !== 0 ? Math.max(1, h - 1) : h;
+        let px = x + 0.5;
+        for (let k = 1; k <= bladeH; k++) {
+          const currX = x + 0.5 + lean * k + sway * (k / bladeH) ** 2;
+          const d = currX - px;
+          const charCol = Math.floor(currX);
+          const charRow = ground - k;
+          if (charCol >= 0 && charCol < this.cols && charRow >= horizon && charRow < this.rows) {
+            grid[charRow][charCol] = d > 0.4 ? '/' : d < -0.4 ? '\\' : '|';
+          }
+          px = currX;
+        }
       }
     }
 
-    // 5. Fireflies dancing across the entire periphery
-    const flyCount = Math.min(50, Math.floor(this.cols * 0.65));
+    // 6. Sweeping wave fireflies with halo glows (from fireflies.ts)
+    const GLOW: [number, string][] = [[0.6, '*'], [0.34, '+'], [0.17, '·'], [0.07, '.']];
+    const HALO: [number, number, number][] = [
+      [0, 0, 1], [-1, 0, 0.45], [1, 0, 0.45], [-2, 0, 0.13], [2, 0, 0.13], [0, -1, 0.16], [0, 1, 0.16]
+    ];
+    const WAVE = 11;
+    const flyCount = Math.min(44, Math.floor(this.cols * 0.6));
     for (let i = 0; i < flyCount; i++) {
       const seed = i * 113.7;
-      const speedX = 0.2 + (i % 5) * 0.08;
-      const speedY = 0.15 + (i % 4) * 0.06;
+      const fx = 3 + (seed % Math.max(1, this.cols - 6));
+      const fy = horizon + 1 + ((seed * 0.5) % Math.max(1, ground - horizon - 2));
 
-      const x = Math.floor(((seed + t * speedX * 8) % this.cols + this.cols) % this.cols);
-      const y = Math.floor((Math.sin(t * speedY + seed) * 0.45 + 0.5) * this.rows);
+      const w0 = 0.05 + (i % 5) * 0.02;
+      const w1 = 0.11 + (i % 4) * 0.03;
+      const w2 = 0.07 + (i % 3) * 0.02;
+      const p0 = (seed * 0.7) % 6.28;
+      const p1 = (seed * 1.3) % 6.28;
+      const p2 = (seed * 2.1) % 6.28;
 
-      const pulse = Math.sin(t * 1.6 + seed);
-      if (pulse > 0.2 && y >= 0 && y < this.rows && x >= 0 && x < this.cols) {
-        grid[y][x] = pulse > 0.8 ? '*' : pulse > 0.5 ? '+' : '·';
+      const x = fx + 6 * Math.sin(w0 * t + p0) + 2.5 * Math.sin(w1 * t + p1);
+      const y = fy + 1.4 * Math.sin(w2 * t + p2) + 0.6 * Math.sin(w1 * 1.7 * t + p0);
+
+      // Traveling wave flash across the meadow
+      const waveProgress = (t % WAVE) / WAVE;
+      const waveFront = waveProgress * this.cols;
+      const distToWave = Math.abs(x - waveFront);
+      const pulse = distToWave < 6
+        ? Math.max(0, 1 - distToWave / 6)
+        : Math.sin(t * 2.0 + seed);
+
+      if (pulse > 0.15) {
+        const cx = Math.floor(x);
+        const cy = Math.floor(y);
+        for (const [dc, dr, k] of HALO) {
+          const cc = cx + dc;
+          const rr = cy + dr;
+          if (cc >= 0 && cc < this.cols && rr >= horizon && rr < ground) {
+            const val = pulse * k;
+            const match = GLOW.find(([minVal]) => val >= minVal);
+            if (match && grid[rr][cc] === ' ') {
+              grid[rr][cc] = match[1];
+            }
+          }
+        }
       }
     }
   }
